@@ -34,6 +34,10 @@ const SCALES = [
   { unit: "day", step: 1, format: (d: Date) => format(d, "d") },
 ];
 
+const CELL_HEIGHT = 38; // px per task row (matches the `cellHeight` prop)
+const SCALE_HEIGHT = 73; // px for the two-row scale header (Willow theme)
+const HSCROLL_SLACK = 18; // room for the horizontal scrollbar
+
 export function GanttBoard() {
   const plan = usePlanStore((s) => s.plan);
   const selectTask = usePlanStore((s) => s.selectTask);
@@ -60,15 +64,16 @@ export function GanttBoard() {
       }
     }
 
-    // Tight project window (a couple of days of padding) so a ~3-week plan fills
-    // the view without large empty margins.
+    // Tight project window so a ~3-week plan fills the view without large empty
+    // margins. Extra room on the right (SVAR draws each task's label to the
+    // right of its bar) so the last task's name isn't clipped at the edge.
     let start: Date | undefined;
     let end: Date | undefined;
     if (tasks.length) {
       const minStart = Math.min(...tasks.map((t) => (t.start as Date).getTime()));
       const maxEnd = Math.max(...tasks.map((t) => (t.end as Date).getTime()));
-      start = shiftDays(new Date(minStart), -2);
-      end = shiftDays(new Date(maxEnd), 2);
+      start = shiftDays(new Date(minStart), -1);
+      end = shiftDays(new Date(maxEnd), 5);
     }
     return { tasks, links, start, end };
   }, [plan]);
@@ -76,8 +81,12 @@ export function GanttBoard() {
   if (!plan) return <div className="gantt-empty">Загрузка плана…</div>;
   if (!plan.tasks.length) return <div className="gantt-empty">План пуст.</div>;
 
+  // Size the board to its content so SVAR doesn't paint empty rows below the
+  // tasks; `max-height: 100%` (in CSS) lets a large plan scroll instead.
+  const contentHeight = SCALE_HEIGHT + tasks.length * CELL_HEIGHT + HSCROLL_SLACK;
+
   return (
-    <div className="gantt-wrap">
+    <div className="gantt-wrap" style={{ height: contentHeight }}>
       {/* readonly: edits go through the chat agent / Excel, not drag-and-drop. */}
       <Willow>
         <Gantt
