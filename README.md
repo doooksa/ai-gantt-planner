@@ -184,10 +184,6 @@ wrong and how it was fixed, and what was verified by hand. Highlights:
   format has no place for it; structure is preserved (documented + tested).
 - Single project, no auth, no drag-and-drop field editing (out of scope by spec).
 - Agent SSE streams events (`tool`/`applied`/`message`/`done`), not token-by-token.
-- The Gantt is rendered as a labelled timeline (SVAR `columns={false}`); the left
-  data-grid is disabled because its virtualiser under-measured its viewport in the
-  embedded preview browser. Task details are in the modal; re-enabling the grid is
-  a one-line change (`GanttBoard.tsx`).
 
 ## 11. Roadmap
 
