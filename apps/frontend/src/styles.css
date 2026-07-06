@@ -1,0 +1,326 @@
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --border: #e2e5ea;
+  --text: #1f2430;
+  --muted: #6b7280;
+  --accent: #2f6fed;
+  --accent-weak: #eaf1ff;
+  --added: #1c8a52;
+  --removed: #c0392b;
+  --warn: #a86b00;
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  color: var(--text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* --- Toolbar --- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.brand {
+  font-weight: 700;
+}
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toolbar-actions button,
+.toolbar-actions .btn {
+  font: inherit;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 7px;
+  cursor: pointer;
+  color: var(--text);
+  text-decoration: none;
+}
+.toolbar-actions button:hover,
+.toolbar-actions .btn:hover {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+}
+.version {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  padding: 0 4px;
+}
+.ws {
+  font-size: 12px;
+}
+.ws.on {
+  color: var(--added);
+}
+.ws.off {
+  color: var(--muted);
+}
+
+.error-bar {
+  background: #fde8e8;
+  color: var(--removed);
+  padding: 8px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid #f5c2c2;
+}
+
+/* --- Main layout --- */
+.main {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+.gantt-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.chat-pane {
+  flex: 0 0 380px;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  display: flex;
+  min-height: 0;
+}
+
+.gantt-wrap {
+  height: 100%;
+  width: 100%;
+}
+/* SVAR's theme wrappers (there are two, nested) and the Gantt root must all fill
+   the pane, otherwise the Gantt collapses to a default height and virtualizes to
+   only a couple of visible rows. */
+.gantt-wrap .wx-theme,
+.gantt-wrap .wx-gantt {
+  height: 100%;
+}
+/* Force SVAR's virtual-scroll viewport to take height. In the embedded preview
+   browser its ResizeObserver measured 0 at mount, collapsing the grid/chart
+   bodies so only ~2 rows rendered. */
+.gantt-wrap .wx-stuck,
+.gantt-wrap .wx-layout,
+.gantt-wrap .wx-table-container,
+.gantt-wrap .wx-chart {
+  height: 100% !important;
+}
+.gantt-empty {
+  padding: 40px;
+  color: var(--muted);
+}
+
+/* --- Chat --- */
+.chat {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+.chat-head {
+  padding: 12px 14px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+.chat-log {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chat-hint {
+  color: var(--muted);
+  font-size: 14px;
+}
+.suggestion {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 6px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.suggestion:hover {
+  background: var(--accent-weak);
+}
+
+.msg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.msg-user {
+  align-items: flex-end;
+}
+.bubble {
+  max-width: 92%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+.msg-user .bubble {
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 3px;
+}
+.msg-assistant .bubble {
+  background: #f0f2f5;
+  border-bottom-left-radius: 3px;
+}
+.typing {
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+.chat-status {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* --- Applied changes --- */
+.applied {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fbfcfe;
+  padding: 8px 10px;
+  font-size: 13px;
+  max-width: 100%;
+}
+.applied-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.applied ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.applied .chg-added {
+  color: var(--added);
+}
+.applied .chg-removed {
+  color: var(--removed);
+}
+.undo-btn {
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.undo-btn:hover {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+}
+.warn {
+  color: var(--warn);
+  margin-top: 6px;
+}
+
+.chat-input {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid var(--border);
+}
+.chat-input input {
+  flex: 1;
+  font: inherit;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+.chat-input button {
+  font: inherit;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+.chat-input button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* --- Task modal --- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 33, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.modal {
+  background: #fff;
+  border-radius: 14px;
+  width: min(460px, 92vw);
+  padding: 18px 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.modal-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.icon-btn {
+  border: none;
+  background: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--muted);
+  line-height: 1;
+}
+.modal-fields {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 6px 12px;
+  margin: 0;
+}
+.modal-fields dt {
+  color: var(--muted);
+}
+.modal-fields dd {
+  margin: 0;
+}
