@@ -7,10 +7,12 @@ through **MCP tools**; the backend validates every operation, applies it
 atomically, and **deterministically recomputes the schedule**. Task dates are
 always *derived*, never stored.
 
-> Status: **Backend (Phase 1 + 2) complete and gated.** Frontend (Phase 3) in
-> progress. Demo gif to follow once the local demo scenario passes its gate.
+> Status: **Phases 1–3 complete and gated locally.** The full demo scenario
+> (chat edits → applied changes → live Gantt/WS update → undo, plus Excel and the
+> task modal) runs end-to-end against `uvicorn :8000` + Vite `:5173`. Deployment
+> (Vercel/Render) is the remaining step. Demo gif to follow.
 
-<!-- TODO(Phase 3): demo.gif -->
+<!-- TODO: demo.gif -->
 
 ---
 
@@ -182,6 +184,10 @@ wrong and how it was fixed, and what was verified by hand. Highlights:
   format has no place for it; structure is preserved (documented + tested).
 - Single project, no auth, no drag-and-drop field editing (out of scope by spec).
 - Agent SSE streams events (`tool`/`applied`/`message`/`done`), not token-by-token.
+- The Gantt is rendered as a labelled timeline (SVAR `columns={false}`); the left
+  data-grid is disabled because its virtualiser under-measured its viewport in the
+  embedded preview browser. Task details are in the modal; re-enabling the grid is
+  a one-line change (`GanttBoard.tsx`).
 
 ## 11. Roadmap
 
