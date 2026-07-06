@@ -111,21 +111,9 @@ body,
   height: 100%;
   width: 100%;
 }
-/* SVAR's theme wrappers (there are two, nested) and the Gantt root must all fill
-   the pane, otherwise the Gantt collapses to a default height and virtualizes to
-   only a couple of visible rows. */
-.gantt-wrap .wx-theme,
-.gantt-wrap .wx-gantt {
+/* SVAR's theme wrapper must fill the pane so the Gantt gets a real height. */
+.gantt-wrap .wx-theme {
   height: 100%;
-}
-/* Force SVAR's virtual-scroll viewport to take height. In the embedded preview
-   browser its ResizeObserver measured 0 at mount, collapsing the grid/chart
-   bodies so only ~2 rows rendered. */
-.gantt-wrap .wx-stuck,
-.gantt-wrap .wx-layout,
-.gantt-wrap .wx-table-container,
-.gantt-wrap .wx-chart {
-  height: 100% !important;
 }
 .gantt-empty {
   padding: 40px;
