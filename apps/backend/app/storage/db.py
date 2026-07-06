@@ -20,7 +20,10 @@ class Storage:
     def __init__(self, path: str | Path = "gantt.db") -> None:
         # ":memory:" is supported for tests.
         self._path = str(path)
-        self._conn = sqlite3.connect(self._path)
+        # check_same_thread=False: the ASGI server may serve a request from a
+        # worker thread while the connection was created on another. Access is
+        # effectively serialized (single event loop / one shared connection).
+        self._conn = sqlite3.connect(self._path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL;")
         self._init_schema()
 
