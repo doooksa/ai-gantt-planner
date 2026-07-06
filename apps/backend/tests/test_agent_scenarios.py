@@ -3,8 +3,8 @@
 These call OpenRouter for real, so they are SKIPPED unless OPENROUTER_API_KEY is
 set. Run the gate with a cheap model, e.g.:
 
-    LLM_MODEL=anthropic/claude-3.5-haiku \
-    OPENROUTER_API_KEY=sk-or-... \
+    LLM_MODEL=anthropic/claude-haiku-4.5 \
+    OPENROUTER_API_KEY=<your-openrouter-key> \
     ./.venv/Scripts/python.exe -m pytest tests/test_agent_scenarios.py -v
 
 Gate target: 5/5 stable runs. Each test starts from a fresh seed (in-memory).
