@@ -1,0 +1,15 @@
+# --- Core domain (Phase 1) ---
+pydantic>=2.7,<3
+openpyxl>=3.1,<4
+
+# --- API / server (Phase 2+) ---
+fastapi>=0.111
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9      # multipart upload for Excel
+
+# --- MCP + LLM (Phase 2) ---
+mcp>=1.2
+openai>=1.40                 # OpenRouter via base_url
+
+# --- Dev / test ---
+pytest>=8.2
