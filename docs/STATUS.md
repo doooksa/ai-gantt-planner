@@ -68,6 +68,29 @@ no longer exists after the project moved; rebuilt on Python 3.13.2.
 **Deploy** using `docs/DEPLOY.md` (owner: connect Vercel + Render, set
 `OPENROUTER_API_KEY`), then record `docs/demo.gif`.
 
+## After moving this folder (read first if paths look broken)
+
+A move breaks environment-specific absolute paths. To recover:
+
+1. **Recreate the backend venv** — it is gitignored and its scripts hardcode the
+   old path, so it will not work after a move:
+   ```bash
+   cd apps/backend
+   rm -rf .venv
+   python -m venv .venv
+   .venv/Scripts/python -m pip install -r requirements.txt   # *nix: .venv/bin/python
+   .venv/Scripts/python -m pytest -m "not live"              # expect 63 passed
+   ```
+   (Last rebuilt on Python 3.13.2; the old venv pointed at a since-removed 3.12.)
+2. **Frontend** — `node_modules` may survive a move, but if `npm run dev`/`tsc`
+   misbehaves: `cd apps/frontend && rm -rf node_modules && npm install`.
+3. **`<repo-parent>/.claude/launch.json`** (used by the preview tool, lives one
+   level above this repo) contains **absolute** paths to `node.exe` and the repo;
+   update them to the new location, or just run the frontend with `npm run dev`.
+4. Everything else (source, git history, deploy manifests, docs) is
+   path-independent and travels with the folder. Remote is intact:
+   `origin → github.com/doooksa/ai-gantt-planner` (branch `main`, all work pushed).
+
 ## Run locally
 - Backend: `cd apps/backend && uvicorn app.main:app --port 8000` (`.env` from `.env.example` + your key).
 - Frontend: `cd apps/frontend && npm run dev` (Node 20+), proxies `/api` + `/ws` to `:8000`.
