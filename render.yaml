@@ -1,0 +1,26 @@
+# Render Blueprint — backend (FastAPI + MCP) as a Docker web service.
+# Import via Render dashboard → New → Blueprint (points at this repo).
+# Render injects $PORT; the Dockerfile CMD binds to it.
+services:
+  - type: web
+    name: ai-gantt-api
+    runtime: docker
+    dockerfilePath: ./apps/backend/Dockerfile
+    dockerContext: ./apps/backend
+    plan: free            # free tier sleeps after ~15 min idle (cold start ~30 s)
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # Secret — set in the Render dashboard, never committed.
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: anthropic/claude-haiku-4.5
+      # Your Vercel URL, e.g. https://ai-gantt-planner.vercel.app
+      # (comma-separated list allowed for preview URLs).
+      - key: FRONTEND_ORIGIN
+        sync: false
+      # SQLite on the ephemeral container disk — fine for a demo; a mutation
+      # survives until the next deploy/restart. See ROADMAP for durable storage.
+      - key: DATABASE_URL
+        value: sqlite:///./gantt.db

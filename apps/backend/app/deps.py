@@ -41,7 +41,13 @@ class Settings:
     def __init__(self) -> None:
         self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "")
         self.llm_model = os.getenv("LLM_MODEL", "anthropic/claude-sonnet-4.5")
+        # FRONTEND_ORIGIN may be a single origin or a comma-separated list
+        # (prod URL + Vercel preview URLs). Kept as a raw string for back-compat;
+        # `frontend_origins` is the parsed list used for CORS.
         self.frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+        self.frontend_origins = [
+            o.strip() for o in self.frontend_origin.split(",") if o.strip()
+        ]
         # DATABASE_URL like "sqlite:///./gantt.db" -> path "./gantt.db".
         url = os.getenv("DATABASE_URL", "sqlite:///./gantt.db")
         self.db_path = url.split("///", 1)[1] if "///" in url else "gantt.db"
