@@ -19,6 +19,10 @@ venv/
 node_modules/
 dist/
 .vite/
+*.tsbuildinfo
+# tsc -b compiled outputs of vite.config.ts (source stays .ts)
+apps/frontend/vite.config.js
+apps/frontend/vite.config.d.ts
 
 # OS / editor
 .DS_Store

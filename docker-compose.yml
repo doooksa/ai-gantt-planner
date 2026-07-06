@@ -1,0 +1,39 @@
+# Local one-command run of both services.
+#   1. cp .env.example apps/backend/.env   # then set OPENROUTER_API_KEY
+#   2. docker compose up --build
+#   3. open http://localhost:5173
+#
+# The frontend (nginx) proxies /api and /ws to the backend, so the browser
+# talks same-origin — mirroring the deployed Vercel+Render topology as closely
+# as a single host allows.
+
+services:
+  backend:
+    build: ./apps/backend
+    # Env comes from apps/backend/.env (OPENROUTER_API_KEY, LLM_MODEL, ...).
+    env_file:
+      - ./apps/backend/.env
+    environment:
+      # In-container the frontend origin is the nginx service on :5173.
+      FRONTEND_ORIGIN: http://localhost:5173
+      DATABASE_URL: sqlite:////data/gantt.db
+    volumes:
+      # Persist the SQLite DB across restarts.
+      - backend-data:/data
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    build: ./apps/frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  backend-data:
