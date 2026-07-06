@@ -9,8 +9,30 @@ from __future__ import annotations
 
 import os
 from datetime import date
+from pathlib import Path
 
 from .storage.db import Storage
+
+# --- .env loading (zero-dependency) --------------------------------------
+
+# Backend root: .../apps/backend (one level above the `app` package).
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent
+
+
+def load_dotenv(path: Path | None = None) -> None:
+    """Populate os.environ from a .env file. Does NOT override already-set vars
+    (real environment wins over the file). No external dependency."""
+    env_path = path or (_BACKEND_ROOT / ".env")
+    if not env_path.exists():
+        return
+    for raw in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key, value = key.strip(), value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
 
 # --- settings (env) -------------------------------------------------------
 
@@ -31,6 +53,7 @@ _settings: Settings | None = None
 def get_settings() -> Settings:
     global _settings
     if _settings is None:
+        load_dotenv()
         _settings = Settings()
     return _settings
 
