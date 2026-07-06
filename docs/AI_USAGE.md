@@ -87,4 +87,60 @@ derived, не source of truth) — значит реимпортированны
 
 ---
 
+## Phase 2 — MCP + агент (сервер, bridge, агентский цикл, REST/SSE/WS)
+
+**Assistant:** Claude Code (Opus 4.8).
+
+### Что делегировано ассистенту
+- `mcp_server/` — FastMCP-сервер с ровно 4 инструментами (`get_plan`,
+  `validate_patch`, `apply_patch`, `undo_last`), смонтирован в тот же
+  FastAPI-процесс по streamable HTTP на `/mcp`.
+- `llm/mcp_openai_bridge.py` — конвертация MCP-схем → OpenAI tools format и
+  сериализация результатов инструментов обратно в сообщения.
+- `llm/agent.py` — агентский цикл (≤10 итераций, get_plan → validate → apply),
+  транспортонезависимый: принимает готовую `ClientSession` и OpenAI-совместимый
+  клиент.
+- `services.py` — единый слой мутаций для REST и MCP (чтобы поведение «сделал
+  агент» и «нажал пользователь» не расходилось), с бродкастом `{version, diff}`.
+- `api/` + `main.py` — REST (`/api/plan|upload-excel|export-excel|undo|
+  reset-demo|health`), SSE `/api/chat`, WebSocket `/ws`, CORS из `FRONTEND_ORIGIN`.
+- `events.py` — in-process шина для WebSocket-бродкаста.
+- Оффлайн-тесты (20 шт.): MCP-инструменты через in-memory transport, bridge,
+  агентский цикл с фейковым LLM, REST/SSE через TestClient. Плюс живой гейт
+  `tests/test_agent_scenarios.py` (10 команд, skip без ключа).
+
+### Ключевые проектные решения
+- **Транспортонезависимый агент.** `run_agent(session, llm, ...)` не знает про
+  HTTP — это позволило покрыть весь цикл оффлайн (in-memory MCP + фейковый LLM),
+  а в проде `/api/chat` соединяется с собственным `/mcp` по streamable HTTP.
+- **Единый `services.py`** вместо дублирования логики в MCP-инструментах и REST.
+- **Ошибки инструментов — структурой `{ok:false, error, code}`**, а не
+  исключением: агент читает их и сам исправляется (покрыто тестом
+  `test_agent_recovers_from_invalid_patch`).
+- **SSE — событийный** (`tool`/`applied`/`message`/`done`), не по токенам.
+  Потоковый вывод финального текста по токенам вынесен в roadmap.
+
+### Что модель предлагала неверно / что пришлось поправить руками
+- **Монтирование MCP:** `streamable_http_app()` сам обслуживает путь `/mcp`;
+  наивный `app.mount("/mcp", ...)` дал бы `/mcp/mcp`. Исправлено:
+  `mcp.settings.streamable_http_path = "/"` перед монтированием в `/mcp`.
+- **`session_manager.run()` — один раз на экземпляр.** В тестах `with TestClient`
+  повторно входил в lifespan → RuntimeError. Решение: API-тесты не используют
+  lifespan (chat подменяет провайдер MCP-сессии на in-memory).
+- **SQLite и потоки.** TestClient обслуживает запросы из worker-потока →
+  `ProgrammingError`. Добавлен `check_same_thread=False` (доступ фактически
+  сериализован одним event loop).
+
+### Сделано руками / проверено человеком
+- Оффлайн-гейт: **63 passed, 10 skipped** (live).
+- Живой рантайм-смоук (uvicorn): health, план с датами от сегодня, экспорт xlsx,
+  ответ `/mcp`, бродкаст по WebSocket `{version, diff}`, и полный round-trip
+  реального MCP-клиента к `/mcp` по streamable HTTP (4 инструмента, get_plan → 8
+  задач).
+- **Не проверено:** живой гейт из 10 команд через реальный LLM — требует
+  `OPENROUTER_API_KEY` (в окружении нет; прогон запланирован с ключом
+  пользователя).
+
+---
+
 <!-- Следующие фазы дописывать сюда. -->
