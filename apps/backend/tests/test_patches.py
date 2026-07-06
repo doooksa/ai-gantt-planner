@@ -70,6 +70,42 @@ def test_shift_task_pushes_start_later(start):
     assert delta == 3
 
 
+def test_shift_earlier_unwinds_previous_forward_shift(start):
+    plan = seed_plan()
+    # Push Frontend +5, then pull it -3 -> net offset 2.
+    plan, _ = _apply(plan, [Op(type="shift_task", selector=Selector(by_name="Frontend"), payload={"days": 5})], start)
+    assert plan.by_id("frontend").offset_days == 5
+
+    before = {t.id: t for t in schedule(plan.tasks, start)}
+    plan, _ = _apply(plan, [Op(type="shift_task", selector=Selector(by_name="Frontend"), payload={"days": -3})], start)
+    assert plan.by_id("frontend").offset_days == 2
+
+    after = {t.id: t for t in schedule(plan.tasks, start)}
+    assert (after["frontend"].start - before["frontend"].start).days == -3
+
+
+def test_shift_earlier_below_zero_is_refused(start):
+    plan = seed_plan()
+    op = Op(type="shift_task", selector=Selector(by_name="Frontend"), payload={"days": -3})
+    with pytest.raises(PlanValidationError) as exc:
+        _apply(plan, [op], start)
+    assert exc.value.code == "shift_before_earliest"
+    assert "Frontend" in exc.value.message
+    # Atomic: original plan untouched.
+    assert plan.by_id("frontend").offset_days == 0
+
+
+def test_shift_earlier_partially_out_of_range_is_refused(start):
+    plan = seed_plan()
+    plan, _ = _apply(plan, [Op(type="shift_task", selector=Selector(by_name="Frontend"), payload={"days": 2})], start)
+    # offset is 2; asking for -3 would go to -1 -> refuse (no silent clamp).
+    op = Op(type="shift_task", selector=Selector(by_name="Frontend"), payload={"days": -3})
+    with pytest.raises(PlanValidationError) as exc:
+        _apply(plan, [op], start)
+    assert exc.value.code == "shift_before_earliest"
+    assert plan.by_id("frontend").offset_days == 2  # unchanged
+
+
 def test_set_dependencies_replaces(start):
     plan = seed_plan()
     op = Op(

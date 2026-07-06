@@ -144,8 +144,21 @@ def _op_shift_task(tasks: list[Task], op: Op, warnings: list[str]) -> None:
     _require_match(matched, op)
     days = int(op.payload.get("days", 0))
     for t in matched:
-        # offset_days is clamped at 0 (can't push a task before its earliest date).
-        t.offset_days = max(0, t.offset_days + days)
+        new_offset = t.offset_days + days
+        # A task can never start earlier than its earliest feasible date
+        # (predecessors' end + 1 / project_start), i.e. offset < 0 is invalid.
+        # Shifting "earlier" is only allowed to unwind a previous forward shift.
+        # Refuse explicitly instead of silently clamping to 0.
+        if new_offset < 0:
+            raise PlanValidationError(
+                f"Нельзя перенести задачу «{t.name}» на {abs(days)} дн. раньше: "
+                f"это раньше её самой ранней возможной даты, определяемой "
+                f"зависимостями и датой старта проекта. "
+                f"Доступный сдвиг раньше: не более {t.offset_days} дн.",
+                code="shift_before_earliest",
+                detail=f"shift {t.id}: offset {t.offset_days}{days:+d} < 0",
+            )
+        t.offset_days = new_offset
 
 
 def _op_reassign(tasks: list[Task], op: Op, warnings: list[str]) -> None:
