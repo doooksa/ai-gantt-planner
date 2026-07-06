@@ -7,10 +7,11 @@ through **MCP tools**; the backend validates every operation, applies it
 atomically, and **deterministically recomputes the schedule**. Task dates are
 always *derived*, never stored.
 
-> Status: **Phases 1–3 complete and gated locally.** The full demo scenario
-> (chat edits → applied changes → live Gantt/WS update → undo, plus Excel and the
-> task modal) runs end-to-end against `uvicorn :8000` + Vite `:5173`. Deployment
-> (Vercel/Render) is the remaining step. Demo gif to follow.
+> Status: **Phases 1–3 complete and gated locally; deploy config added.** The
+> full demo scenario (chat edits → applied changes → live Gantt/WS update → undo,
+> plus Excel and the task modal) runs end-to-end against `uvicorn :8000` + Vite
+> `:5173`. Deployment manifests for Vercel (frontend) and Render (backend) are in
+> the repo; see [§6](#6-deployment). Demo gif to follow.
 
 <!-- TODO: demo.gif -->
 
@@ -123,12 +124,59 @@ npm run dev            # http://localhost:5173, proxies the API to :8000
 
 ### docker-compose
 
-`docker-compose up` (both services) — to be added with Phase 3 delivery.
+```bash
+cp .env.example apps/backend/.env      # then set OPENROUTER_API_KEY
+docker compose up --build              # backend + frontend (nginx)
+# open http://localhost:5173
+```
+
+The frontend container (nginx) serves the built SPA and reverse-proxies `/api`
+and `/ws` to the backend container, so the browser talks **same-origin** —
+mirroring the Vercel+Render topology as closely as a single host allows.
+
+> ⚠️ **Not run-verified locally.** The Docker daemon was unavailable in the dev
+> environment where these files were authored, so `docker compose up` was **not
+> executed end-to-end here.** The compose file passes `docker compose config`
+> (syntax/interpolation validated) and the Dockerfiles follow the standard
+> Python-slim / node-build→nginx patterns, but a first run on a machine with a
+> running daemon may still need a tweak. The non-Docker local setup above **is**
+> verified (63 tests green, frontend builds, demo scenario passes).
 
 ## 6. Deployment
 
-Frontend → Vercel, backend → Render. Details to be finalized after the local
-demo gate.
+Frontend → **Vercel**, backend → **Render**. Manifests are committed:
+
+| File | Role |
+|---|---|
+| `render.yaml` | Render Blueprint — backend as a Docker web service, `healthCheckPath: /api/health` |
+| `apps/backend/Dockerfile` | backend image (binds Render's `$PORT`) |
+| `apps/frontend/vercel.json` | Vercel build + SPA rewrites |
+| `apps/frontend/Dockerfile` + `nginx.conf` | only for docker-compose, not for Vercel |
+
+**Environment variables**
+
+*Backend (Render):*
+
+| Var | Example | Notes |
+|---|---|---|
+| `OPENROUTER_API_KEY` | `sk-or-…` | secret; set in dashboard |
+| `LLM_MODEL` | `anthropic/claude-haiku-4.5` | default |
+| `FRONTEND_ORIGIN` | `https://ai-gantt-planner.vercel.app` | CORS allowlist; **comma-separated** list allowed for Vercel preview URLs |
+| `DATABASE_URL` | `sqlite:///./gantt.db` | ephemeral on free tier (see roadmap) |
+
+*Frontend (Vercel):*
+
+| Var | Example | Notes |
+|---|---|---|
+| `VITE_API_BASE` | `https://ai-gantt-api.onrender.com` | backend origin; `VITE_API_URL` accepted as an alias. WS auto-derives `wss://` from an `https` base |
+
+**Cold start.** Render's free tier sleeps after ~15 min idle; the first request
+then takes ~30 s. The frontend handles this: initial load retries with backoff
+behind a **"Сервер просыпается…"** loader, and the WebSocket auto-reconnects
+every 2 s — so a sleeping backend degrades to a short wait, not an error.
+
+**Step-by-step click-through** (Render then Vercel) is in
+[docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## 7. Excel + API reference
 
@@ -173,9 +221,19 @@ wrong and how it was fixed, and what was verified by hand. Highlights:
 
 - Domain, scheduler, validators, patches, Excel I/O, storage, and the full MCP +
   agent backend were generated with Claude Code, then gated by tests.
+- The frontend (Gantt board, chat panel, task modal, toolbar) and the whole
+  deployment layer (Dockerfiles, nginx, compose, `render.yaml`, `vercel.json`,
+  cold-start handling) were generated with Claude Code.
 - Notable fixes made in-dialogue: `offset_days` to keep dates derived while
   supporting shifts; refusing shifts before the earliest date; documenting the
-  op-payload catalog in tool descriptions (fixed agent flakiness prompt-only).
+  op-payload catalog in tool descriptions (fixed agent flakiness prompt-only);
+  date-fns scale formatters (SVAR's string tokens aren't date-fns); sizing the
+  Gantt to content height to drop empty rows and widening the window so the last
+  task label isn't clipped.
+- Honesty on verification: `docker compose up` could **not** be run in the dev
+  environment (no Docker daemon), so it's labeled *not verified locally* rather
+  than presented as tested — see [docs/AI_USAGE.md](docs/AI_USAGE.md) and
+  [docs/STATUS.md](docs/STATUS.md).
 
 ## 10. Known limitations
 
@@ -187,5 +245,4 @@ wrong and how it was fixed, and what was verified by hand. Highlights:
 
 ## 11. Roadmap
 
-See [docs/ROADMAP_TO_PRODUCTION.md](docs/ROADMAP_TO_PRODUCTION.md) *(to be added
-with Phase 3)*.
+See [docs/ROADMAP_TO_PRODUCTION.md](docs/ROADMAP_TO_PRODUCTION.md).

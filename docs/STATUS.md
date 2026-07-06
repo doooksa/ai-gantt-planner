@@ -26,24 +26,47 @@ Toolbar (Excel import/export, undo, reset, version, WS status).
 **Gate: full local demo scenario verified end-to-end** (chat edit → applied changes →
 live Gantt/WS update → undo; task modal; mass reassign).
 
-## Open UI items (post-review, need a look in real Chrome)
-- **Scale labels** switched from string tokens to date-fns formatter functions
-  (+ ru locale); week = week-start date, day = day number. Verified as code; the
-  embedded preview browser doesn't render SVAR scale cells, so **visual confirmation
-  is pending in Chrome**.
-- Grid columns restored (задача / исполнитель / длительность) — rendered OK.
-- Explicit `start`/`end` window (±2 days) so a ~3-week plan fills the view (day/week
-  scales) — no large empty margins.
-- Agent replies shortened to a 1–2 sentence summary (details stay in Applied changes).
+### Phase 4 — deployment config + polish (this session)
+- **Deploy manifests:** backend + frontend Dockerfiles, `nginx.conf` (SPA +
+  reverse-proxy /api /ws /mcp), `docker-compose.yml`, `render.yaml` (Docker web
+  service, health check), `apps/frontend/vercel.json` (vite + SPA rewrites).
+- **Prod CORS:** `FRONTEND_ORIGIN` parses into a list (prod + Vercel preview).
+- **Render cold start:** `bootstrap()` retry/backoff + "Сервер просыпается…"
+  loader; **WebSocket reconnect now uses exponential backoff** (1s→30s, reset on
+  open). Client accepts `VITE_API_URL` alias; WS derives `wss://` from an https
+  base.
+- **UI polish (verified in preview via DOM):**
+  - Empty space under tasks removed — the board is sized to its content height
+    (`wrapH` 664→395, gap below SVAR = 0), scrolls for larger plans.
+  - Last task label no longer clipped — right window margin widened (`+2`→`+5`
+    days) so SVAR's right-of-bar label ("Demo") has room.
+- **Docs:** `ROADMAP_TO_PRODUCTION.md` restructured into scheduler / data &
+  multi-user / AI safety (dry-run, prompt-injection, eval-set) / files /
+  deploy & CI; `DEPLOY.md` step-by-step; README §5–6 + §9.
 
-## Not started
-- **Deployment** — frontend → Vercel, backend → Render; `docker-compose.yml`;
-  `docs/ROADMAP_TO_PRODUCTION.md`; `docs/demo.gif`.
+**Verified here:** `pytest -m "not live"` → 63 passed (incl. after CORS change),
+`tsc -b` clean, cold-start loader + compact Gantt confirmed live via DOM,
+`docker compose config` valid, no console errors.
+
+## Blocked / not verified here (owner action)
+- ⚠️ **`docker compose up` not run.** Docker CLI is installed (v29.2.1) but the
+  daemon was unreachable in this environment — Docker Desktop was launched and
+  the daemon polled repeatedly over several minutes; `docker version` against the
+  server timed out and the `dockerDesktopLinuxEngine` pipe never appeared (likely
+  needs WSL2/GUI). Compose + Dockerfiles are written to the docs and pass
+  `docker compose config`, but a first real `up` may need a tweak. **Owner: run
+  `docker compose up --build` on a machine with a running daemon.**
+- **Live deployment** — external accounts + `OPENROUTER_API_KEY` (owner);
+  follow `docs/DEPLOY.md`.
+- **`docs/demo.gif`** — record on the running app.
+
+## Environment note
+The `.venv` was recreated this session — the old one pointed at a Python 3.12 that
+no longer exists after the project moved; rebuilt on Python 3.13.2.
 
 ## Next step
-**Deploy.** Prepare deploy config (Dockerfiles, docker-compose, `vercel.json` /
-`render.yaml`, CORS/env wiring), then connect Vercel/Render accounts and set the
-production `OPENROUTER_API_KEY` (owner action — external accounts + secret).
+**Deploy** using `docs/DEPLOY.md` (owner: connect Vercel + Render, set
+`OPENROUTER_API_KEY`), then record `docs/demo.gif`.
 
 ## Run locally
 - Backend: `cd apps/backend && uvicorn app.main:app --port 8000` (`.env` from `.env.example` + your key).

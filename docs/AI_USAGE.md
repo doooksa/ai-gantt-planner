@@ -240,4 +240,47 @@ derived, не source of truth) — значит реимпортированны
 
 ---
 
+## Фаза деплоя — конфигурация доставки (Vercel + Render)
+
+### Делегировано Claude Code
+- Dockerfile бэкенда (python:3.12-slim, uvicorn с биндом на `$PORT` для Render) и
+  фронта (multi-stage node-build → nginx), `.dockerignore` для обоих.
+- `nginx.conf`: SPA-fallback + reverse-proxy `/api`, `/ws`, `/mcp` на бэкенд —
+  браузер работает same-origin, как в dev-прокси Vite.
+- `docker-compose.yml`: обе службы, volume для SQLite, healthcheck; в env бэка
+  `DATABASE_URL=sqlite:////data/gantt.db` (в volume).
+- `render.yaml` (Blueprint, Docker web service, `healthCheckPath: /api/health`,
+  `OPENROUTER_API_KEY`/`FRONTEND_ORIGIN` как `sync:false`) и
+  `apps/frontend/vercel.json` (framework vite + SPA rewrites).
+- Прод-CORS: `FRONTEND_ORIGIN` теперь парсится в список через запятую
+  (`deps.py` → `frontend_origins`, `main.py` отдаёт его в `allow_origins`) — под
+  прод-URL + preview-URL Vercel.
+- Обработка холодного старта Render на фронте: в сторе — `bootstrap()` с ретраями
+  и бэкоффом и флагом `waking`; в `App.tsx` — экран-лоадер «Сервер просыпается…»
+  с подсказкой про ~30 сек; авто-reconnect WebSocket (2 с) уже был.
+- Документация: `docs/ROADMAP_TO_PRODUCTION.md`, `docs/DEPLOY.md` (пошаговый
+  клик-гайд Render→Vercel→CORS→smoke-test), обновлены README (§5 compose, §6
+  Deployment) и STATUS.
+
+### Что модель предложила/учла и как поправлено
+- `client.ts` читал только `VITE_API_BASE`, а в ТЗ фигурировал `VITE_API_URL` —
+  добавлен приём обоих (алиас) + срез хвостового слэша, чтобы `${BASE}/api/...`
+  не задваивался.
+- `wsUrl()` уже выводил `wss://` из `https`-базы — отдельная правка под
+  «WS через wss в проде» не понадобилась, зафиксировано в доках.
+
+### Сделано/проверено руками (в этой среде)
+- **Пересоздан `.venv`**: старый указывал на несуществующий после переезда
+  Python 3.12; создан заново на 3.13.2, переустановлены зависимости.
+- `pytest -m "not live"` → **63 passed** (в т.ч. после правки CORS).
+- `tsc -b` фронта → без ошибок.
+- Экран холодного старта проверен вживую: поднят Vite при выключенном бэкенде →
+  DOM показал спиннер + «Сервер просыпается…» + подсказку (`preview_eval`).
+- `docker compose config` → синтаксис/интерполяция валидны.
+- **Не проверено:** реальный `docker compose up` (в среде не запущен Docker
+  daemon) и сам деплой на Vercel/Render (аккаунты и ключ — у владельца). Это
+  честно помечено в README; проверок не имитировалось.
+
+---
+
 <!-- Следующие фазы дописывать сюда. -->
