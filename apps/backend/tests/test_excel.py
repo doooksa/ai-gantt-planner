@@ -1,6 +1,11 @@
 import pytest
 
+from datetime import timedelta
+
 from app.excel import export_excel, parse_excel
+from app.domain.models import Op, Patch, Selector
+from app.domain.patches import apply_patch
+from app.domain.scheduler import schedule
 from app.domain.validators import PlanValidationError
 from app.storage.seed import seed_plan
 
@@ -104,6 +109,32 @@ def test_export_then_import_roundtrip(start):
         back_name = {t.id: t.name for t in reparsed.tasks}
         back_pred_names = {back_name[p] for p in back.predecessor_ids}
         assert orig_pred_names == back_pred_names
+
+
+def test_export_import_drops_offset_days(start):
+    """Conscious trade-off: a manual shift (offset_days) does not survive the
+    Excel round-trip, because the format has no column for it and import ignores
+    the computed date columns. Structure is preserved; the shift is not."""
+    plan = seed_plan()
+    shifted, _ = apply_patch(
+        plan,
+        Patch(ops=[Op(type="shift_task", selector=Selector(by_name="Frontend"), payload={"days": 3})]),
+        start,
+    )
+    assert shifted.by_id("frontend").offset_days == 3
+
+    # Exported dates DO reflect the shift...
+    base = {t.id: t for t in schedule(plan.tasks, start)}
+    shifted_sched = {t.id: t for t in schedule(shifted.tasks, start)}
+    assert shifted_sched["frontend"].start == base["frontend"].start + timedelta(days=3)
+
+    # ...but a round-trip resets offset_days to 0 (documented limitation).
+    reparsed = parse_excel(export_excel(shifted, start))
+    assert reparsed.by_id("frontend").offset_days == 0
+    # Structure (tasks, deps, durations) is fully preserved.
+    assert [t.name for t in reparsed.tasks] == [t.name for t in shifted.tasks]
+    reparsed_sched = {t.id: t for t in schedule(reparsed.tasks, start)}
+    assert reparsed_sched["frontend"].start == base["frontend"].start  # shift gone
 
 
 def test_export_includes_computed_dates(start):

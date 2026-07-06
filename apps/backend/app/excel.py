@@ -7,6 +7,19 @@ Predecessors are task *names*, comma-separated, resolved to ids.
 Export adds computed `дата начала`, `дата конца`.
 
 All user-facing errors are Russian and include the row number where relevant.
+
+Known limitation — `offset_days` is NOT preserved across an Excel round-trip.
+    The interchange format is deliberately fixed at 5 structural columns
+    (задача/описание/исполнитель/длительность/предшественники) + 2 *computed*
+    date columns. A task's manual shift (`offset_days`, set via `shift_task`) is
+    not one of those columns, so export→import resets it to 0. The exported date
+    columns DO reflect the shift (they are scheduled with the offset applied),
+    but on import those dates are ignored — dates are derived, never a source of
+    truth — so the reimported plan is scheduled without the shift. This is a
+    conscious trade-off to keep the format spec-exact and the "dates are derived"
+    invariant intact; it is asserted by test_export_import_drops_offset_days and
+    noted for the production roadmap (a hidden "сдвиг, дн." column would restore
+    full fidelity if ever needed).
 """
 
 from __future__ import annotations
