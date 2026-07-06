@@ -1,8 +1,12 @@
 import io
+import os
 from datetime import date
 
 import pytest
 from openpyxl import Workbook
+
+# Safety net: never touch a real gantt.db during tests.
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
 # Fixed project start so scheduled dates are deterministic in assertions.
 FIXED_START = date(2026, 1, 1)
