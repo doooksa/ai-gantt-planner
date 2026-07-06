@@ -145,8 +145,14 @@ def test_chat_applies_and_streams_events(client, storage, fake_chat):
     assert storage.get_plan().by_id("design").duration_days == 5
 
 
-def test_chat_reports_error_without_key(client, storage):
-    # No provider override -> real make_llm_client runs with no OPENROUTER_API_KEY.
+def test_chat_reports_error_without_key(client, storage, monkeypatch):
+    # Simulate a missing key regardless of whether .env provided one: the error
+    # must surface as a clean SSE 'error' event, not a crash.
+    import app.deps as deps
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "")
+    monkeypatch.setattr(deps, "_settings", None)  # force settings re-read
+
     r = client.post("/api/chat", json={"message": "привет"})
     events = _sse_events(r.text)
     assert any(e["type"] == "error" and "OPENROUTER_API_KEY" in e["error"] for e in events)
