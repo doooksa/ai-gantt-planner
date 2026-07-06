@@ -1,7 +1,13 @@
 import type { ChatEvent, ChatMessage, Plan } from "../types/plan";
 
 // Empty base -> same-origin; the Vite dev server proxies /api and /ws to :8000.
-const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
+// VITE_API_BASE is canonical; VITE_API_URL is accepted as an alias. Trailing
+// slash trimmed so `${BASE}/api/...` never doubles up.
+const BASE = (
+  (import.meta.env.VITE_API_BASE as string | undefined) ??
+  (import.meta.env.VITE_API_URL as string | undefined) ??
+  ""
+).replace(/\/$/, "");
 
 async function errText(r: Response): Promise<string> {
   try {
