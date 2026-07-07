@@ -168,7 +168,7 @@ body,
   padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 .chat-hint {
   color: var(--muted);
@@ -201,19 +201,21 @@ body,
 }
 .bubble {
   max-width: 92%;
-  padding: 8px 12px;
-  border-radius: 12px;
+  padding: 9px 13px;
+  border-radius: 14px;
   white-space: pre-wrap;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 .msg-user .bubble {
   background: var(--accent);
   color: #fff;
-  border-bottom-right-radius: 3px;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 1px 8px rgba(139, 124, 246, 0.28);
 }
 .msg-assistant .bubble {
   background: var(--panel-2);
-  border-bottom-left-radius: 3px;
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
 }
 .typing {
   letter-spacing: 2px;
@@ -243,12 +245,39 @@ body,
 }
 .applied ul {
   margin: 0;
-  padding-left: 16px;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.applied .chg {
+  display: flex;
+  gap: 7px;
+  align-items: baseline;
+}
+.applied .chg::before {
+  flex: 0 0 auto;
+  width: 0.9em;
+  text-align: center;
+  font-weight: 700;
 }
 .applied .chg-added {
   color: var(--added);
 }
+.applied .chg-added::before {
+  content: "+";
+  color: var(--added);
+}
+.applied .chg-updated::before {
+  content: "~";
+  color: var(--accent);
+}
 .applied .chg-removed {
+  color: var(--removed);
+}
+.applied .chg-removed::before {
+  content: "−";
   color: var(--removed);
 }
 .undo-btn {
@@ -293,6 +322,9 @@ body,
   background: var(--accent);
   color: #fff;
   cursor: pointer;
+}
+.chat-input button:not(:disabled):hover {
+  background: var(--accent-strong);
 }
 .chat-input button:disabled {
   opacity: 0.5;
