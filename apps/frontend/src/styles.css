@@ -197,14 +197,21 @@ body,
 .gantt-wrap .wx-bar:not(.wx-milestone):hover {
   filter: brightness(1.14);
 }
-/* Small date range rendered inside a bar via taskTemplate (wide bars only). */
+/* Bar label via taskTemplate: name first (priority), dates appended small. The
+   block clips its overflow, so trailing dates are cut before the name is. */
+.gantt-wrap .bar-label {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 6px;
+  color: #fff;
+  pointer-events: none;
+}
 .gantt-wrap .bar-dates {
   font-size: 10px;
-  line-height: 1;
-  color: #fff;
-  opacity: 0.85;
-  white-space: nowrap;
-  pointer-events: none;
+  opacity: 0.78;
+  margin-left: 6px;
 }
 
 /* --- Chat --- */

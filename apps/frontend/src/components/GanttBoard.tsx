@@ -38,18 +38,24 @@ const CELL_HEIGHT = 38; // px per task row (matches the `cellHeight` prop)
 const SCALE_HEIGHT = 73; // px for the two-row scale header (Willow theme)
 const HSCROLL_SLACK = 18; // room for the horizontal scrollbar
 
-// Small date range inside a bar, only when the bar is wide enough to hold it
-// (>= 3 days at cellWidth 44) — hidden on short tasks so it never overflows.
-function BarDates({ data }: { data: ITask }) {
+// Bar label: the task NAME always (the name matters more than the dates — dates
+// are readable off the scale, the name is not), plus a small dd.MM–dd.MM range
+// appended only when the task is long enough (>= 3 days). If "name + dates" don't
+// fit, the bar clips the trailing dates first, so the name is preserved.
+function BarLabel({ data }: { data: ITask }) {
   const duration = (data.duration as number) ?? 0;
   const start = data.start as Date | undefined;
   const end = data.end as Date | undefined;
-  if (duration < 3 || !start || !end) return null;
-  const endInclusive = new Date(end);
-  endInclusive.setDate(endInclusive.getDate() - 1); // SVAR end is exclusive
+  let dates: string | null = null;
+  if (duration >= 3 && start && end) {
+    const e = new Date(end);
+    e.setDate(e.getDate() - 1); // SVAR end is exclusive
+    dates = `${format(start, "dd.MM")}–${format(e, "dd.MM")}`;
+  }
   return (
-    <span className="bar-dates">
-      {format(start, "dd.MM")}–{format(endInclusive, "dd.MM")}
+    <span className="bar-label">
+      <span className="bar-name">{data.text as string}</span>
+      {dates && <span className="bar-dates">{dates}</span>}
     </span>
   );
 }
@@ -115,7 +121,7 @@ export function GanttBoard() {
           end={end}
           cellWidth={44}
           cellHeight={38}
-          taskTemplate={BarDates as never}
+          taskTemplate={BarLabel as never}
           init={(api: IApi) => {
             apiRef.current = api;
             api.on("select-task", (ev: { id?: string | number }) => {
