@@ -162,6 +162,12 @@ body,
   color: var(--muted);
 }
 
+/* Hover (not click — click opens the modal) highlights the grid row background.
+   Scoped to grid body rows so the scale rows in the chart aren't affected. */
+.gantt-wrap .wx-grid .wx-body .wx-row:hover {
+  background: var(--accent-weak);
+}
+
 /* --- Gantt bars: single accent, slight rounding, hover highlight --- */
 /* Override SVAR's task-color CSS variables (default blue) on the theme wrapper.
    Critical-path colors are intentionally left untouched. */
