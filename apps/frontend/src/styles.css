@@ -169,11 +169,12 @@ body,
 }
 
 /* Thin, low-contrast internal gridlines: chart day columns (timescale-border)
-   and grid cell/row separators — enough to read dates, not enough to buzz. */
+   and grid cell/row separators — visible enough to read, not enough to buzz.
+   NB row-border draws the horizontal row separators — keep it visible. */
 .gantt-wrap .wx-theme {
-  --wx-timescale-border: 1px solid rgba(255, 255, 255, 0.06);
-  --wx-grid-body-cell-border: 1px solid rgba(255, 255, 255, 0.05);
-  --wx-grid-body-row-border: 1px solid rgba(255, 255, 255, 0.05);
+  --wx-timescale-border: 1px solid rgba(255, 255, 255, 0.13);
+  --wx-grid-body-cell-border: 1px solid rgba(255, 255, 255, 0.12);
+  --wx-grid-body-row-border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* --- Gantt bars: single accent, slight rounding, hover highlight --- */
