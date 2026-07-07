@@ -169,21 +169,30 @@ body,
   background: var(--accent-weak);
 }
 
-/* Internal gridlines. Set both the SVAR vars AND the element border colours
-   directly, so calibration starts from a *visible* baseline regardless of
-   whether a theme rule shadows the vars. 0.25 = deliberately bright to calibrate
-   down from. .wx-row border-top = horizontal row separators (grid + chart lanes);
-   .wx-cell border-right = vertical day columns. */
-.gantt-wrap .wx-theme {
-  --wx-timescale-border: 1px solid rgba(255, 255, 255, 0.25);
-  --wx-grid-body-cell-border: 1px solid rgba(255, 255, 255, 0.25);
-  --wx-grid-body-row-border: 1px solid rgba(255, 255, 255, 0.25);
+/* Gridlines. The chart BODY draws its grid as a generated background PNG layer
+   over .wx-area — CSS cell borders only reach the scale header, which is why the
+   body looked line-less at any contrast. Override that layer with repeating
+   gradients so day columns run the full chart height. Scale/grid cell borders are
+   matched so the vertical lines are continuous from the header down.
+   Vertical day lines 0.12; horizontal row separators paler (0.07). */
+.gantt-wrap .wx-cell {
+  border-right-color: rgba(255, 255, 255, 0.12);
 }
 .gantt-wrap .wx-row {
-  border-top-color: rgba(255, 255, 255, 0.25);
+  border-top-color: rgba(255, 255, 255, 0.07);
 }
-.gantt-wrap .wx-cell {
-  border-right-color: rgba(255, 255, 255, 0.25);
+.gantt-wrap .wx-area > div:not([class*="wx-bars"]):not([class*="wx-selected"]) {
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0 43px,
+      rgba(255, 255, 255, 0.12) 43px 44px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 37px,
+      rgba(255, 255, 255, 0.07) 37px 38px
+    ) !important;
 }
 
 /* --- Gantt bars: single accent, slight rounding, hover highlight --- */
