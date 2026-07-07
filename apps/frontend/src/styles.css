@@ -105,17 +105,26 @@ body,
 .main {
   flex: 1 1 auto;
   display: flex;
+  gap: 12px;
+  padding: 12px;
   min-height: 0;
+  background: var(--bg);
 }
+/* Panels float as rounded cards on the background with a faint border. */
 .gantt-pane {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
 }
 .chat-pane {
-  flex: 0 0 380px;
-  border-left: 1px solid var(--border);
+  flex: 0 0 372px;
   background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
   display: flex;
   min-height: 0;
 }
