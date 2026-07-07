@@ -78,13 +78,18 @@ body,
   background: var(--accent-weak);
   border-color: var(--accent);
 }
-.version {
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-  padding: 0 4px;
-}
+.version,
 .ws {
   font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.version {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--muted);
 }
 .ws.on {
   color: var(--added);
