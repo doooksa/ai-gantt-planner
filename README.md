@@ -9,6 +9,14 @@ through **MCP tools**; the backend validates every operation, applies it
 atomically, and **deterministically recomputes the schedule**. Task dates are
 always *derived*, never stored.
 
+**Live demo:** [frontend (Vercel)](https://ai-gantt-planner-three.vercel.app) ·
+[backend (Render)](https://ai-gantt-api.onrender.com/api/health) ·
+[interactive API docs (Swagger)](https://ai-gantt-api.onrender.com/docs)
+
+> The backend is on Render's free tier and sleeps when idle — the first load may
+> show a "Сервер просыпается…" loader for ~30 s. Chat needs a funded LLM key set
+> on the backend; the Gantt, Excel import/export, task modal and undo work regardless.
+
 > Status: **Phases 1–3 complete and gated locally; deploy config added.** The
 > full demo scenario (chat edits → applied changes → live Gantt/WS update → undo,
 > plus Excel and the task modal) runs end-to-end against `uvicorn :8000` + Vite
@@ -188,7 +196,8 @@ POST /api/upload-excel        POST /api/undo
 GET  /api/export-excel        POST /api/reset-demo
 POST /api/chat  (SSE)         WS   /ws   → {version, diff}
 ```
-CORS origin comes from `FRONTEND_ORIGIN`.
+CORS origin comes from `FRONTEND_ORIGIN`. FastAPI also serves interactive docs at
+**`/docs`** (Swagger UI), `/redoc` (ReDoc), and the schema at `/openapi.json`.
 
 ## 8. Model selection
 

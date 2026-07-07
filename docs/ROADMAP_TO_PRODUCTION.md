@@ -97,11 +97,13 @@ export adds computed start/end; clear per-row errors.
 ## 5. Deployment & CI
 
 Today: `render.yaml` (backend, Docker) + `vercel.json` (frontend) + a
-`docker-compose` for local; the frontend already handles Render's cold start
+`docker-compose` for local; GitHub Actions CI runs `pytest -m "not live"` + the
+frontend build on every push/PR; the frontend already handles Render's cold start
 (retry/backoff loader + WS backoff).
 
-- **CI/CD.** Run `pytest -m "not live"` + `tsc` on every PR; run the live agent
-  gate (real tokens) on a schedule. Block deploys on red.
+- **CI/CD.** Offline CI (tests + build) is in place (`.github/workflows/ci.yml`).
+  Still to add: run the live agent gate (real tokens) on a schedule, and block
+  deploys on red.
 - **Health, metrics, alerting.** `/api/health` exists; add readiness vs.
   liveness, request metrics, and error-rate alerts. An uptime pinger doubles as a
   keep-warm to remove the ~30 s cold start (or move to a paid always-on tier).
