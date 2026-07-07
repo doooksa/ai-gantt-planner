@@ -188,21 +188,47 @@ body,
   color: var(--muted);
   font-size: 14px;
 }
+/* Empty-history greeting styled as an agent bubble. */
+.chat-hint p {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  border-bottom-left-radius: 4px;
+  color: var(--text);
+  line-height: 1.45;
+}
+.chat-hint p::before {
+  content: "👋 ";
+}
+/* Suggestions as clickable command cards with a trailing arrow. */
 .suggestion {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   width: 100%;
   text-align: left;
   margin: 6px 0;
-  padding: 8px 10px;
+  padding: 11px 13px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--panel-2);
   color: var(--text);
   font: inherit;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.suggestion::after {
+  content: "→";
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-weight: 700;
 }
 .suggestion:hover {
   background: var(--accent-weak);
+  border-color: var(--accent);
 }
 
 .msg {
