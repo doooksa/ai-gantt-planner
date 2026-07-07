@@ -3,7 +3,6 @@ import { Gantt, Willow } from "@svar-ui/react-gantt";
 import type { IApi, ILink, ITask } from "@svar-ui/react-gantt";
 import "@svar-ui/react-gantt/style.css";
 import { format } from "date-fns";
-import { ru } from "date-fns/locale";
 
 import { usePlanStore } from "../store/plan";
 
@@ -27,10 +26,11 @@ const COLUMNS = [
 ];
 
 // SVAR scale `format` is a function (its string tokens are not date-fns), so we
-// format with date-fns + Russian locale. Week header shows the week's start
-// date, day header the day-of-month number.
+// format with date-fns. Week header shows the week's start date as a short
+// numeric `dd.MM` ("26.07") — fixed width so a narrow last-week cell at the right
+// edge can't wrap to two lines and clip. Day header is the day-of-month number.
 const SCALES = [
-  { unit: "week", step: 1, format: (d: Date) => format(d, "d MMM", { locale: ru }) },
+  { unit: "week", step: 1, format: (d: Date) => format(d, "dd.MM") },
   { unit: "day", step: 1, format: (d: Date) => format(d, "d") },
 ];
 
