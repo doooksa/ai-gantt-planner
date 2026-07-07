@@ -40,7 +40,9 @@ def client(storage):
 
 
 def test_health(client):
-    assert client.get("/api/health").json() == {"status": "ok"}
+    body = client.get("/api/health").json()
+    assert body["status"] == "ok"
+    assert "commit" in body
 
 
 def test_get_plan(client):

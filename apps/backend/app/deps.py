@@ -51,15 +51,9 @@ class Settings:
         # DATABASE_URL like "sqlite:///./gantt.db" -> path "./gantt.db".
         url = os.getenv("DATABASE_URL", "sqlite:///./gantt.db")
         self.db_path = url.split("///", 1)[1] if "///" in url else "gantt.db"
-        # The agent connects to its OWN MCP server INTERNALLY over 127.0.0.1 —
-        # never the public URL. This avoids a WAN round-trip AND the MCP
-        # streamable-HTTP transport's DNS-rebinding host check, whose default
-        # allow-list is 127.0.0.1:* / localhost:* / [::1]:* only (a public Host
-        # header -> 421 Misdirected Request). Trailing slash hits the mount's
-        # canonical path directly, so there is no 307 redirect. PORT is the port
-        # uvicorn binds to (Render injects it; default 8000 locally).
-        port = os.getenv("PORT", "8000")
-        self.mcp_self_url = os.getenv("MCP_SELF_URL", f"http://127.0.0.1:{port}/mcp/")
+        # Deployed commit (Render injects RENDER_GIT_COMMIT), surfaced by
+        # /api/health so we can confirm which build is actually live.
+        self.commit = os.getenv("RENDER_GIT_COMMIT", "dev")[:7]
 
 
 _settings: Settings | None = None

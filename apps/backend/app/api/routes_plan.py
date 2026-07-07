@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from .. import services
-from ..deps import get_project_start, get_storage
+from ..deps import get_project_start, get_settings, get_storage
 from ..events import get_event_bus
 
 router = APIRouter(prefix="/api")
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api")
 
 @router.get("/health")
 async def health() -> dict:
-    return {"status": "ok"}
+    return {"status": "ok", "commit": get_settings().commit}
 
 
 @router.get("/plan")

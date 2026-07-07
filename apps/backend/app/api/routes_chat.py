@@ -7,15 +7,19 @@ SSE event payloads (JSON in each `data:` line):
     {"type": "done",    "text": ..., "applied": [...]}
     {"type": "error",   "error": ...}
 
-The agent connects to THIS process's MCP server over streamable HTTP (per spec).
-`session_provider` is swappable so tests can inject an in-memory MCP session and
-a fake LLM without a network or an API key.
+The agent talks to THIS process's own MCP server. It connects over an IN-PROCESS
+(in-memory) MCP transport rather than looping back out over HTTP: no network
+round-trip, and none of the streamable-HTTP transport's host/DNS-rebinding checks
+(which reject a public Host header with 421). The HTTP `/mcp` endpoint stays
+mounted for external MCP clients. `session_provider` is swappable so tests (and
+the offline path) inject their own session + fake LLM.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator, Callable
 
@@ -24,10 +28,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.shared.memory import create_connected_server_and_client_session
 
 from ..deps import get_settings, make_llm_client
 from ..llm.agent import run_agent
+from ..mcp_server.server import build_mcp_server
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
 
@@ -38,20 +45,20 @@ class ChatRequest(BaseModel):
 
 
 @asynccontextmanager
-async def _http_mcp_session(mcp_url: str) -> AsyncIterator[ClientSession]:
-    """Default provider: connect to the mounted MCP server over streamable HTTP.
+async def _inmemory_mcp_session(_ignored: str = "") -> AsyncIterator[ClientSession]:
+    """Default provider: an in-process MCP session to this app's own server.
 
-    `mcp_url` is the internal canonical endpoint (http://127.0.0.1:PORT/mcp/) —
-    see deps.Settings.mcp_self_url for why it must be internal + trailing-slash.
+    Uses in-memory streams (no HTTP, no host header, no port), so it works
+    identically locally and behind a proxy like Render. Tools resolve the shared
+    Storage singleton, so state matches the REST API.
     """
-    async with streamablehttp_client(mcp_url) as (read, write, _):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            yield session
+    server = build_mcp_server()
+    async with create_connected_server_and_client_session(server._mcp_server) as session:
+        yield session
 
 
-# Overridable in tests: (mcp_url) -> async context manager yielding ClientSession.
-session_provider: Callable[[str], Any] = _http_mcp_session
+# Overridable in tests: (arg) -> async context manager yielding ClientSession.
+session_provider: Callable[[str], Any] = _inmemory_mcp_session
 
 # Overridable in tests: () -> OpenAI-compatible client.
 llm_provider: Callable[[], Any] = make_llm_client
@@ -61,11 +68,19 @@ def _sse(event: dict[str, Any]) -> str:
     return f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
 
+def _describe_error(exc: BaseException) -> str:
+    """Unwrap anyio/TaskGroup ExceptionGroups to the underlying cause so the
+    client sees the real reason, not 'unhandled errors in a TaskGroup'."""
+    seen = 0
+    while isinstance(exc, BaseExceptionGroup) and exc.exceptions and seen < 5:
+        exc = exc.exceptions[0]
+        seen += 1
+    return f"{type(exc).__name__}: {exc}".strip()
+
+
 @router.post("/chat")
 async def chat(body: ChatRequest) -> StreamingResponse:
-    settings = get_settings()
-    model = settings.llm_model
-    mcp_url = settings.mcp_self_url
+    model = get_settings().llm_model
 
     async def event_stream() -> AsyncIterator[str]:
         queue: asyncio.Queue = asyncio.Queue()
@@ -76,14 +91,15 @@ async def chat(body: ChatRequest) -> StreamingResponse:
         async def run() -> None:
             try:
                 llm = llm_provider()
-                async with session_provider(mcp_url) as session:
+                async with session_provider("") as session:
                     result = await run_agent(
                         session, llm, model, body.message,
                         history=body.history, on_event=on_event,
                     )
                 await queue.put({"type": "done", "text": result.text, "applied": result.applied_diffs})
-            except Exception as exc:  # surface a clean error event to the client
-                await queue.put({"type": "error", "error": str(exc)})
+            except Exception as exc:  # surface a clean, unwrapped error to the client
+                logger.exception("chat agent failed")  # full traceback in server logs
+                await queue.put({"type": "error", "error": _describe_error(exc)})
             finally:
                 await queue.put(None)
 
