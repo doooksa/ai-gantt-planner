@@ -23,6 +23,12 @@ from .mcp_openai_bridge import mcp_tools_to_openai, tool_result_to_text
 
 MAX_ITERATIONS = 10
 
+# Cap the model's output per turn. The agent only emits small tool-call payloads
+# (a patch) and a 1-2 sentence summary, so this is ample — and it stops the
+# request from pre-authorizing the model's full context (e.g. 64k), which fails
+# the OpenRouter credit check ("can only afford N tokens") on low-limit keys.
+MAX_RESPONSE_TOKENS = 2048
+
 SYSTEM_PROMPT = (
     "Ты редактор плана проекта. Перед правками всегда читай план через get_plan. "
     "Для проверки используй validate_patch, затем apply_patch. Массовые операции "
@@ -78,6 +84,7 @@ async def run_agent(
             messages=messages,
             tools=openai_tools,
             tool_choice="auto",
+            max_tokens=MAX_RESPONSE_TOKENS,
         )
         msg = response.choices[0].message
         tool_calls = list(msg.tool_calls or [])
