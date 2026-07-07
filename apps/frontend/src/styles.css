@@ -180,6 +180,15 @@ body,
 .gantt-wrap .wx-bar:not(.wx-milestone):hover {
   filter: brightness(1.14);
 }
+/* Small date range rendered inside a bar via taskTemplate (wide bars only). */
+.gantt-wrap .bar-dates {
+  font-size: 10px;
+  line-height: 1;
+  color: #fff;
+  opacity: 0.85;
+  white-space: nowrap;
+  pointer-events: none;
+}
 
 /* --- Chat --- */
 .chat {

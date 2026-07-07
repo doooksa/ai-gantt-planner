@@ -38,6 +38,22 @@ const CELL_HEIGHT = 38; // px per task row (matches the `cellHeight` prop)
 const SCALE_HEIGHT = 73; // px for the two-row scale header (Willow theme)
 const HSCROLL_SLACK = 18; // room for the horizontal scrollbar
 
+// Small date range inside a bar, only when the bar is wide enough to hold it
+// (>= 3 days at cellWidth 44) — hidden on short tasks so it never overflows.
+function BarDates({ data }: { data: ITask }) {
+  const duration = (data.duration as number) ?? 0;
+  const start = data.start as Date | undefined;
+  const end = data.end as Date | undefined;
+  if (duration < 3 || !start || !end) return null;
+  const endInclusive = new Date(end);
+  endInclusive.setDate(endInclusive.getDate() - 1); // SVAR end is exclusive
+  return (
+    <span className="bar-dates">
+      {format(start, "dd.MM")}–{format(endInclusive, "dd.MM")}
+    </span>
+  );
+}
+
 export function GanttBoard() {
   const plan = usePlanStore((s) => s.plan);
   const selectTask = usePlanStore((s) => s.selectTask);
@@ -99,6 +115,7 @@ export function GanttBoard() {
           end={end}
           cellWidth={44}
           cellHeight={38}
+          taskTemplate={BarDates as never}
           init={(api: IApi) => {
             apiRef.current = api;
             api.on("select-task", (ev: { id?: string | number }) => {
