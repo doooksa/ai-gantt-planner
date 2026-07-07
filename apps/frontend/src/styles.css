@@ -1,14 +1,17 @@
 :root {
-  --bg: #f5f6f8;
-  --panel: #ffffff;
-  --border: #e2e5ea;
-  --text: #1f2430;
-  --muted: #6b7280;
-  --accent: #2f6fed;
-  --accent-weak: #eaf1ff;
-  --added: #1c8a52;
-  --removed: #c0392b;
-  --warn: #a86b00;
+  color-scheme: dark;
+  --bg: #16181d;
+  --panel: #1d2026;
+  --panel-2: #23272f;
+  --border: #2c313a;
+  --text: #e6e8ec;
+  --muted: #9aa3b2;
+  --accent: #8b7cf6;
+  --accent-strong: #7c6cf0;
+  --accent-weak: rgba(139, 124, 246, 0.16);
+  --added: #34d399;
+  --removed: #f87171;
+  --warn: #fbbf24;
   font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   color: var(--text);
 }
@@ -54,7 +57,7 @@ body,
   font: inherit;
   padding: 6px 12px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--panel-2);
   border-radius: 7px;
   cursor: pointer;
   color: var(--text);
@@ -81,11 +84,11 @@ body,
 }
 
 .error-bar {
-  background: #fde8e8;
+  background: rgba(248, 113, 113, 0.12);
   color: var(--removed);
   padding: 8px 16px;
   cursor: pointer;
-  border-bottom: 1px solid #f5c2c2;
+  border-bottom: 1px solid rgba(248, 113, 113, 0.32);
 }
 
 /* --- Main layout --- */
@@ -155,7 +158,8 @@ body,
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--panel-2);
+  color: var(--text);
   font: inherit;
   cursor: pointer;
 }
@@ -184,7 +188,7 @@ body,
   border-bottom-right-radius: 3px;
 }
 .msg-assistant .bubble {
-  background: #f0f2f5;
+  background: var(--panel-2);
   border-bottom-left-radius: 3px;
 }
 .typing {
@@ -201,7 +205,7 @@ body,
 .applied {
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fbfcfe;
+  background: var(--panel-2);
   padding: 8px 10px;
   font-size: 13px;
   max-width: 100%;
@@ -227,7 +231,8 @@ body,
   font: inherit;
   font-size: 12px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--panel-2);
+  color: var(--text);
   border-radius: 6px;
   padding: 3px 8px;
   cursor: pointer;
@@ -253,6 +258,8 @@ body,
   padding: 9px 12px;
   border: 1px solid var(--border);
   border-radius: 9px;
+  background: var(--panel-2);
+  color: var(--text);
 }
 .chat-input button {
   font: inherit;
@@ -272,18 +279,19 @@ body,
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(20, 24, 33, 0.45);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 50;
 }
 .modal {
-  background: #fff;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 14px;
   width: min(460px, 92vw);
   padding: 18px 20px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
 }
 .modal-head {
   display: flex;

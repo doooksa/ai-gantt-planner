@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { Gantt, Willow } from "@svar-ui/react-gantt";
+import { Gantt, WillowDark } from "@svar-ui/react-gantt";
 import type { IApi, ILink, ITask } from "@svar-ui/react-gantt";
 import "@svar-ui/react-gantt/style.css";
 import { format } from "date-fns";
@@ -88,7 +88,7 @@ export function GanttBoard() {
   return (
     <div className="gantt-wrap" style={{ height: contentHeight }}>
       {/* readonly: edits go through the chat agent / Excel, not drag-and-drop. */}
-      <Willow>
+      <WillowDark>
         <Gantt
           readonly
           tasks={tasks}
@@ -106,7 +106,7 @@ export function GanttBoard() {
             });
           }}
         />
-      </Willow>
+      </WillowDark>
     </div>
   );
 }
