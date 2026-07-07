@@ -19,7 +19,7 @@ import json
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator, Callable
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -38,16 +38,19 @@ class ChatRequest(BaseModel):
 
 
 @asynccontextmanager
-async def _http_mcp_session(base_url: str) -> AsyncIterator[ClientSession]:
-    """Default provider: connect to the mounted MCP server over streamable HTTP."""
-    url = base_url.rstrip("/") + "/mcp"
-    async with streamablehttp_client(url) as (read, write, _):
+async def _http_mcp_session(mcp_url: str) -> AsyncIterator[ClientSession]:
+    """Default provider: connect to the mounted MCP server over streamable HTTP.
+
+    `mcp_url` is the internal canonical endpoint (http://127.0.0.1:PORT/mcp/) —
+    see deps.Settings.mcp_self_url for why it must be internal + trailing-slash.
+    """
+    async with streamablehttp_client(mcp_url) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             yield session
 
 
-# Overridable in tests: (base_url) -> async context manager yielding ClientSession.
+# Overridable in tests: (mcp_url) -> async context manager yielding ClientSession.
 session_provider: Callable[[str], Any] = _http_mcp_session
 
 # Overridable in tests: () -> OpenAI-compatible client.
@@ -59,9 +62,10 @@ def _sse(event: dict[str, Any]) -> str:
 
 
 @router.post("/chat")
-async def chat(request: Request, body: ChatRequest) -> StreamingResponse:
-    base_url = str(request.base_url)
-    model = get_settings().llm_model
+async def chat(body: ChatRequest) -> StreamingResponse:
+    settings = get_settings()
+    model = settings.llm_model
+    mcp_url = settings.mcp_self_url
 
     async def event_stream() -> AsyncIterator[str]:
         queue: asyncio.Queue = asyncio.Queue()
@@ -72,7 +76,7 @@ async def chat(request: Request, body: ChatRequest) -> StreamingResponse:
         async def run() -> None:
             try:
                 llm = llm_provider()
-                async with session_provider(base_url) as session:
+                async with session_provider(mcp_url) as session:
                     result = await run_agent(
                         session, llm, model, body.message,
                         history=body.history, on_event=on_event,
