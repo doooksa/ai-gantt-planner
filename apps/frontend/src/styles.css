@@ -207,6 +207,14 @@ body,
 .gantt-wrap .wx-bar:not(.wx-milestone):hover {
   filter: brightness(1.14);
 }
+/* Synchronized hover (row <-> bar share a data-id): highlight both at once. */
+.gantt-wrap .wx-row.hl-task {
+  background: var(--accent-weak);
+}
+.gantt-wrap .wx-bar.hl-task {
+  filter: brightness(1.12);
+  box-shadow: 0 0 0 1.5px var(--accent), 0 0 10px rgba(139, 124, 246, 0.55);
+}
 /* Bar label via taskTemplate: name first (priority), dates appended small. The
    block clips its overflow, so trailing dates are cut before the name is. */
 .gantt-wrap .bar-label {

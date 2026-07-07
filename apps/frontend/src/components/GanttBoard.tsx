@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { type MouseEvent as ReactMouseEvent, useMemo, useRef } from "react";
 import { Gantt, WillowDark } from "@svar-ui/react-gantt";
 import type { IApi, ILink, ITask } from "@svar-ui/react-gantt";
 import "@svar-ui/react-gantt/style.css";
@@ -60,6 +60,24 @@ function BarLabel({ data }: { data: ITask }) {
   );
 }
 
+// Synchronized hover: SVAR tags both the grid row and the chart bar of a task
+// with the same data-id, so a single delegated handler highlights both when
+// either is hovered. No store state — a transient CSS class toggled directly.
+function syncHover(e: ReactMouseEvent<HTMLElement>) {
+  const wrap = e.currentTarget;
+  const id = (e.target as HTMLElement).closest("[data-id]")?.getAttribute("data-id");
+  wrap.querySelectorAll(".hl-task").forEach((x) => x.classList.remove("hl-task"));
+  if (id) {
+    const sel = CSS.escape(id);
+    wrap
+      .querySelectorAll(`.wx-bar[data-id="${sel}"], .wx-row[data-id="${sel}"]`)
+      .forEach((x) => x.classList.add("hl-task"));
+  }
+}
+function clearHover(e: ReactMouseEvent<HTMLElement>) {
+  e.currentTarget.querySelectorAll(".hl-task").forEach((x) => x.classList.remove("hl-task"));
+}
+
 export function GanttBoard() {
   const plan = usePlanStore((s) => s.plan);
   const selectTask = usePlanStore((s) => s.selectTask);
@@ -108,7 +126,12 @@ export function GanttBoard() {
   const contentHeight = SCALE_HEIGHT + tasks.length * CELL_HEIGHT + HSCROLL_SLACK;
 
   return (
-    <div className="gantt-wrap" style={{ height: contentHeight }}>
+    <div
+      className="gantt-wrap"
+      style={{ height: contentHeight }}
+      onMouseOver={syncHover}
+      onMouseLeave={clearHover}
+    >
       {/* readonly: edits go through the chat agent / Excel, not drag-and-drop. */}
       <WillowDark>
         <Gantt
