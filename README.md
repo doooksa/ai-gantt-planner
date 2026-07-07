@@ -1,5 +1,7 @@
 # AI Gantt Planner
 
+[![CI](https://github.com/doooksa/ai-gantt-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/doooksa/ai-gantt-planner/actions/workflows/ci.yml)
+
 Interactive Gantt chart + an LLM chat agent that edits the project plan in
 natural language. Import/export Excel. The agent never writes to the database
 directly — it only translates natural language into structured operations
