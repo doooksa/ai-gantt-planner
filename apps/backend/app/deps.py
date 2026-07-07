@@ -39,8 +39,18 @@ def load_dotenv(path: Path | None = None) -> None:
 
 class Settings:
     def __init__(self) -> None:
-        self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "")
-        self.llm_model = os.getenv("LLM_MODEL", "anthropic/claude-sonnet-4.5")
+        # --- LLM provider profile (OpenAI-compatible) --------------------
+        # Configurable so we can point the same OpenAI SDK at any compatible
+        # endpoint. Defaults = OpenRouter. For Google AI Studio set:
+        #   LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+        #   LLM_API_KEY_ENV=GOOGLE_API_KEY
+        #   LLM_MODEL=gemini-2.5-flash
+        self.llm_base_url = os.getenv("LLM_BASE_URL", "https://openrouter.ai/api/v1")
+        # Name of the env var that holds the API key (indirection so the key
+        # variable can differ per provider, e.g. OPENROUTER_API_KEY vs GOOGLE_API_KEY).
+        self.llm_api_key_env = os.getenv("LLM_API_KEY_ENV", "OPENROUTER_API_KEY")
+        self.llm_api_key = os.getenv(self.llm_api_key_env, "")
+        self.llm_model = os.getenv("LLM_MODEL", "anthropic/claude-haiku-4.5")
         # FRONTEND_ORIGIN may be a single origin or a comma-separated list
         # (prod URL + Vercel preview URLs). Kept as a raw string for back-compat;
         # `frontend_origins` is the parsed list used for CORS.
@@ -98,7 +108,7 @@ def get_project_start() -> date:
 
 
 def make_llm_client():
-    """Create an AsyncOpenAI client pointed at OpenRouter.
+    """Create an AsyncOpenAI client pointed at the configured provider.
 
     Raises a clear error if the key is missing so the failure is obvious rather
     than a confusing auth error deep in a request.
@@ -106,12 +116,12 @@ def make_llm_client():
     from openai import AsyncOpenAI
 
     settings = get_settings()
-    if not settings.openrouter_api_key:
+    if not settings.llm_api_key:
         raise RuntimeError(
-            "OPENROUTER_API_KEY не задан. Скопируйте .env.example в .env и "
-            "укажите ключ OpenRouter."
+            f"{settings.llm_api_key_env} не задан. Скопируйте .env.example в .env "
+            f"и укажите ключ LLM-провайдера."
         )
     return AsyncOpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=settings.openrouter_api_key,
+        base_url=settings.llm_base_url,
+        api_key=settings.llm_api_key,
     )

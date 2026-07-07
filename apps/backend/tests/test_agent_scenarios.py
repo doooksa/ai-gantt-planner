@@ -14,6 +14,7 @@ wording of the model's answer.
 
 import asyncio
 import os
+import time
 
 import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
@@ -40,6 +41,23 @@ def storage():
     yield s
     s.close()
     set_storage(None)
+
+
+# Pace the gate under a provider's per-minute request quota (e.g. Google AI
+# Studio free tier = 5 req/min for gemini-2.5-flash, and one command makes
+# several tool-call requests). Set GATE_PAUSE_SECONDS to sleep between commands.
+# The pause is idle throttling BETWEEN commands — it does not count toward a
+# command's own response time. Skipped before the first command.
+_gate_seq = {"n": 0}
+
+
+@pytest.fixture(autouse=True)
+def _rate_limit_pace():
+    pause = float(os.getenv("GATE_PAUSE_SECONDS", "0"))
+    if pause and _gate_seq["n"] > 0:
+        time.sleep(pause)
+    _gate_seq["n"] += 1
+    yield
 
 
 def run(command: str, history=None):

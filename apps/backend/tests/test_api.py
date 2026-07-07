@@ -152,6 +152,7 @@ def test_chat_reports_error_without_key(client, storage, monkeypatch):
     # must surface as a clean SSE 'error' event, not a crash.
     import app.deps as deps
 
+    monkeypatch.setenv("LLM_API_KEY_ENV", "OPENROUTER_API_KEY")
     monkeypatch.setenv("OPENROUTER_API_KEY", "")
     monkeypatch.setattr(deps, "_settings", None)  # force settings re-read
 
