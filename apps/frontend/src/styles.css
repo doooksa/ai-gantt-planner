@@ -173,9 +173,12 @@ body,
   --wx-gantt-task-font-color: #ffffff;
   --wx-gantt-bar-border-radius: 8px;
 }
-/* 2-tone gradient fill on the bar body (SVAR colours .wx-segment). */
+/* 2-tone gradient fill on the bar body. Normal tasks are .wx-bar.wx-task (SVAR
+   sets their background-color from --wx-gantt-task-color); .wx-segment covers
+   split tasks. Use background-image so it layers over that colour. */
+.gantt-wrap .wx-bar.wx-task,
 .gantt-wrap .wx-segment {
-  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
+  background-image: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
 }
 .gantt-wrap .wx-bar:not(.wx-milestone):hover {
   filter: brightness(1.14);
