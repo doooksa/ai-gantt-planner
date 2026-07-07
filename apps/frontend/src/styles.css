@@ -55,7 +55,19 @@ body,
   letter-spacing: -0.02em;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
+}
+.brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent-weak);
+  border: 1px solid rgba(139, 124, 246, 0.35);
+  font-size: 16px;
+  line-height: 1;
 }
 .toolbar-actions {
   display: flex;

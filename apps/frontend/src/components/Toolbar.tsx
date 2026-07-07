@@ -13,7 +13,10 @@ export function Toolbar() {
 
   return (
     <header className="toolbar">
-      <div className="brand">📊 AI Gantt Planner</div>
+      <div className="brand">
+        <span className="brand-icon">📊</span>
+        AI Gantt Planner
+      </div>
       <div className="toolbar-actions">
         <button onClick={() => fileRef.current?.click()}>Импорт Excel</button>
         <input
