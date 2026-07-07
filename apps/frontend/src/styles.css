@@ -183,11 +183,19 @@ body,
 }
 .gantt-wrap .wx-area > div:not([class*="wx-bars"]):not([class*="wx-selected"]) {
   background-image:
+    /* week boundaries (brighter, every 7 days = 308px; window starts on Sunday) */
+    repeating-linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.2) 0 1px,
+      transparent 1px 308px
+    ),
+    /* day columns */
     repeating-linear-gradient(
       to right,
       transparent 0 43px,
       rgba(255, 255, 255, 0.12) 43px 44px
     ),
+    /* row separators (paler) */
     repeating-linear-gradient(
       to bottom,
       transparent 0 37px,

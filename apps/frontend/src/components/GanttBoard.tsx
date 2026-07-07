@@ -2,7 +2,7 @@ import { type MouseEvent as ReactMouseEvent, useMemo, useRef } from "react";
 import { Gantt, WillowDark } from "@svar-ui/react-gantt";
 import type { IApi, ILink, ITask } from "@svar-ui/react-gantt";
 import "@svar-ui/react-gantt/style.css";
-import { format } from "date-fns";
+import { format, startOfWeek } from "date-fns";
 
 import { usePlanStore } from "../store/plan";
 
@@ -104,15 +104,16 @@ export function GanttBoard() {
       }
     }
 
-    // Tight project window so a ~3-week plan fills the view without large empty
-    // margins. Extra room on the right (SVAR draws each task's label to the
-    // right of its bar) so the last task's name isn't clipped at the edge.
+    // Snap the window start to the week start (Sunday — matches SVAR's week
+    // scale) so weeks are uniform from x=0 and the weekly gridlines line up with
+    // real week boundaries. End keeps extra room on the right so SVAR's
+    // right-of-bar label for the last task isn't clipped.
     let start: Date | undefined;
     let end: Date | undefined;
     if (tasks.length) {
       const minStart = Math.min(...tasks.map((t) => (t.start as Date).getTime()));
       const maxEnd = Math.max(...tasks.map((t) => (t.end as Date).getTime()));
-      start = shiftDays(new Date(minStart), -1);
+      start = startOfWeek(new Date(minStart), { weekStartsOn: 0 });
       end = shiftDays(new Date(maxEnd), 5);
     }
     return { tasks, links, start, end };
