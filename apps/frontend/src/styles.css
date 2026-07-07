@@ -136,6 +136,20 @@ body,
   color: var(--muted);
 }
 
+/* --- Gantt bars: single accent, slight rounding, hover highlight --- */
+/* Override SVAR's task-color CSS variables (default blue) on the theme wrapper.
+   Critical-path colors are intentionally left untouched. */
+.gantt-wrap .wx-theme {
+  --wx-gantt-task-color: var(--accent);
+  --wx-gantt-task-fill-color: var(--accent-strong);
+  --wx-gantt-task-border-color: var(--accent-strong);
+  --wx-gantt-task-font-color: #ffffff;
+  --wx-gantt-bar-border-radius: 6px;
+}
+.gantt-wrap .wx-bar:not(.wx-milestone):hover {
+  filter: brightness(1.14);
+}
+
 /* --- Chat --- */
 .chat {
   display: flex;
