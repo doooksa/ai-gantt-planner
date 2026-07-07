@@ -152,8 +152,13 @@ body,
   --wx-gantt-task-color: var(--accent);
   --wx-gantt-task-fill-color: var(--accent-strong);
   --wx-gantt-task-border-color: var(--accent-strong);
+  --wx-gantt-task-border: 1px solid var(--accent-strong);
   --wx-gantt-task-font-color: #ffffff;
-  --wx-gantt-bar-border-radius: 6px;
+  --wx-gantt-bar-border-radius: 8px;
+}
+/* 2-tone gradient fill on the bar body (SVAR colours .wx-segment). */
+.gantt-wrap .wx-segment {
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
 }
 .gantt-wrap .wx-bar:not(.wx-milestone):hover {
   filter: brightness(1.14);
