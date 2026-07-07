@@ -169,13 +169,21 @@ body,
   background: var(--accent-weak);
 }
 
-/* Thin, low-contrast internal gridlines: chart day columns (timescale-border)
-   and grid cell/row separators — visible enough to read, not enough to buzz.
-   NB row-border draws the horizontal row separators — keep it visible. */
+/* Internal gridlines. Set both the SVAR vars AND the element border colours
+   directly, so calibration starts from a *visible* baseline regardless of
+   whether a theme rule shadows the vars. 0.25 = deliberately bright to calibrate
+   down from. .wx-row border-top = horizontal row separators (grid + chart lanes);
+   .wx-cell border-right = vertical day columns. */
 .gantt-wrap .wx-theme {
-  --wx-timescale-border: 1px solid rgba(255, 255, 255, 0.13);
-  --wx-grid-body-cell-border: 1px solid rgba(255, 255, 255, 0.12);
-  --wx-grid-body-row-border: 1px solid rgba(255, 255, 255, 0.12);
+  --wx-timescale-border: 1px solid rgba(255, 255, 255, 0.25);
+  --wx-grid-body-cell-border: 1px solid rgba(255, 255, 255, 0.25);
+  --wx-grid-body-row-border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.gantt-wrap .wx-row {
+  border-top-color: rgba(255, 255, 255, 0.25);
+}
+.gantt-wrap .wx-cell {
+  border-right-color: rgba(255, 255, 255, 0.25);
 }
 
 /* --- Gantt bars: single accent, slight rounding, hover highlight --- */
