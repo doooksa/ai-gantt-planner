@@ -2,6 +2,24 @@
 
 _Snapshot of where the AI Gantt Planner stands._
 
+## ✅ READY FOR SUBMISSION
+
+All three phases complete and gated; **deployed and verified live**. Only
+`docs/demo.gif` remains (a recording, no code).
+
+- **Live:** [frontend (Vercel)](https://ai-gantt-planner-three.vercel.app) ·
+  [backend (Render)](https://ai-gantt-api.onrender.com/api/health) ·
+  [Swagger](https://ai-gantt-api.onrender.com/docs)
+- **Prod agent gate — 10/10** reference commands passed against the live Render
+  backend (per-command 3.4–6.7 s), plus a focused chat run (Applied changes +
+  Undo confirmed). Model: `anthropic/claude-haiku-4.5` via OpenRouter.
+- **Offline CI (GitHub Actions):** green — `pytest -m "not live"` (63) + frontend build.
+- **Reproducibility:** fresh `git clone` from GitHub + README §5 followed verbatim
+  → backend 63 passed, servers up, frontend serves & proxies; sample_plan.xlsx
+  (downloaded from GitHub) imports cleanly via the API.
+- **MCP self-connection** uses an in-process transport (no host-header/proxy issues
+  on Render); errors are unwrapped; `/api/health` reports the deployed commit.
+
 ## Done (gated)
 
 ### Phase 1 — domain (no UI)
@@ -48,25 +66,27 @@ live Gantt/WS update → undo; task modal; mass reassign).
 `tsc -b` clean, cold-start loader + compact Gantt confirmed live via DOM,
 `docker compose config` valid, no console errors.
 
-## Blocked / not verified here (owner action)
-- ⚠️ **`docker compose up` not run.** Docker CLI is installed (v29.2.1) but the
-  daemon was unreachable in this environment — Docker Desktop was launched and
-  the daemon polled repeatedly over several minutes; `docker version` against the
-  server timed out and the `dockerDesktopLinuxEngine` pipe never appeared (likely
-  needs WSL2/GUI). Compose + Dockerfiles are written to the docs and pass
-  `docker compose config`, but a first real `up` may need a tweak. **Owner: run
-  `docker compose up --build` on a machine with a running daemon.**
-- **Live deployment** — external accounts + `OPENROUTER_API_KEY` (owner);
-  follow `docs/DEPLOY.md`.
-- **`docs/demo.gif`** — record on the running app.
+## Remaining / not verified here
+- **`docs/demo.gif`** — the one open deliverable. Record the running app
+  (chat edit → Applied changes → live Gantt/WS update → Undo; Excel; task modal).
+- ⚠️ **`docker compose up` not run.** The Docker daemon was unreachable in the dev
+  environment. Compose + Dockerfiles pass `docker compose config`, but a first
+  real `up` may need a tweak. (Not on the critical path — prod runs on
+  Render/Vercel directly, verified live.)
+
+## Deployment — done & verified
+Live on **Vercel** (frontend) + **Render** (backend), `OPENROUTER_API_KEY` set on
+Render. Verified live: health, plan, Excel export, CORS matches the Vercel origin,
+and the **10-command agent gate passed 10/10** against prod. Follow
+`docs/DEPLOY.md` to reproduce the setup.
 
 ## Environment note
 The `.venv` was recreated this session — the old one pointed at a Python 3.12 that
 no longer exists after the project moved; rebuilt on Python 3.13.2.
 
 ## Next step
-**Deploy** using `docs/DEPLOY.md` (owner: connect Vercel + Render, set
-`OPENROUTER_API_KEY`), then record `docs/demo.gif`.
+Record `docs/demo.gif` on the running app. Everything else is done, gated, and
+live.
 
 ## After moving this folder (read first if paths look broken)
 
