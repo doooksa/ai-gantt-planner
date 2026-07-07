@@ -6,6 +6,25 @@
 
 ---
 
+## Эксперимент — конфигурируемый LLM-слой + оценка free-tier провайдеров
+
+- Сделан **конфигурируемый OpenAI-совместимый профиль**: `LLM_BASE_URL` +
+  `LLM_API_KEY_ENV` + `LLM_MODEL` (дефолт — OpenRouter/Haiku, переключение на
+  Google — env-только). Ключ провайдера читается по имени переменной из
+  `LLM_API_KEY_ENV` (косвенность: `OPENROUTER_API_KEY` vs `GOOGLE_API_KEY`).
+- Разобрана авторизация OpenRouter (мёртвый ключ → «User not found»; низкий лимит
+  ключа → `402 "can only afford N tokens"`, из-за того что агент не ограничивал
+  `max_tokens`; починено капом 2048).
+- **Оценка free-tier (честно, не приняты):** gemini-2.5-flash быстр (~2–8 с/команда)
+  и корректно зовёт инструменты, но free tier = **~5 req/min + ~20 req/day** на
+  модель. Команда агента = несколько запросов → дневная квота даёт ~5 правок в
+  сутки; гейт 5×10 (~200 запросов) не проходит структурно. OpenRouter free-модели
+  — rate limit 429. Вывод: остаёмся на платной Haiku; для Google в прод — платный
+  тариф (переключение тем же env). Добавлена фикстура `GATE_PAUSE_SECONDS` для
+  пейсинга гейта под минутную квоту (дневную она не обходит).
+
+---
+
 ## Phase 1 — домен без UI (models, scheduler, validators, patches, Excel, storage)
 
 **Assistant:** Claude Code (Opus 4.8).

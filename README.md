@@ -190,28 +190,41 @@ CORS origin comes from `FRONTEND_ORIGIN`.
 
 ## 8. Model selection
 
-The model is chosen with the single env var `LLM_MODEL` (OpenRouter id). The
-default is **`anthropic/claude-haiku-4.5`**.
+The LLM provider is fully configurable — the backend drives any OpenAI-compatible
+endpoint via three env vars (no code changes):
 
-Measured on the Phase 2 gate — the 10 reference commands
-(`apps/backend/tests/test_agent_scenarios.py`):
+| Var | Default | Purpose |
+|---|---|---|
+| `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | API base URL |
+| `LLM_API_KEY_ENV` | `OPENROUTER_API_KEY` | name of the env var holding the key |
+| `LLM_MODEL` | `anthropic/claude-haiku-4.5` | model id |
 
-| Model | Correctness | Stability | Time / full run |
-|---|---|---|---|
-| **`anthropic/claude-haiku-4.5`** (default) | **10 / 10** | **5 / 5 runs** | ~86–104 s |
-| `anthropic/claude-sonnet-4.5` | **10 / 10** | 1 run (control) | ~140 s |
+**Default: OpenRouter + Haiku 4.5.** Measured on the Phase 2 gate (the 10 reference
+commands in `apps/backend/tests/test_agent_scenarios.py`):
 
-Both models pass every command. Haiku 4.5 matches Sonnet 4.5's correctness at
-roughly **1.5× lower latency and cost**, so it is the default.
+| Model | Provider | Correctness | Stability | Time / command |
+|---|---|---|---|---|
+| **`anthropic/claude-haiku-4.5`** (default) | OpenRouter | **10 / 10** | **5 / 5 runs** | ~8 s |
+| `anthropic/claude-sonnet-4.5` | OpenRouter | **10 / 10** | 1 run (control) | ~14 s |
+| `gemini-2.5-flash` | Google AI Studio | correct + fast, but **gate not runnable on free tier** | — | ~2–8 s |
 
-**Takeaway:** correctness comes from the tools/validation/scheduler layer, not
-from the model — so the architecture is **robust to the choice of model**.
-Upgrading is a **one-variable change**: set `LLM_MODEL=anthropic/claude-sonnet-4.5`
-(or any OpenRouter model) in `.env`; no code changes.
+**Takeaway:** correctness comes from the tools/validation/scheduler layer, not the
+model — the architecture is **robust to the choice of model**. Switching providers
+is an env-only change.
 
-> Note: an earlier `.env` used `anthropic/claude-3.5-haiku`, which returns
-> HTTP 404 ("No endpoints found") on OpenRouter — the correct current id is
-> `anthropic/claude-haiku-4.5`.
+**On free tiers (evaluated, not adopted).** Both OpenRouter's free models and
+Google's free tier were tested; neither sustains an agentic workload:
+
+- `gemini-2.5-flash` is fast (~2–8 s/command) and calls tools correctly, but the
+  free tier caps at **~5 requests/minute and ~20 requests/day per model**. One
+  agent command makes several requests, so the free daily quota allows only a
+  *handful of edits per day* — the 5×10 gate (~200 requests) can't complete, and a
+  real user would hit the wall almost immediately.
+- OpenRouter free models hit per-account and upstream-provider rate limits (429s).
+
+So the default stays on a **paid** model (Haiku 4.5, which is cheap). To use Google
+in production, point the profile at a **paid** Google tier — the env switch is the
+same. See `.env.example` for the ready-to-use Google profile.
 
 ## 9. AI assistants usage
 
@@ -242,6 +255,11 @@ wrong and how it was fixed, and what was verified by hand. Highlights:
   format has no place for it; structure is preserved (documented + tested).
 - Single project, no auth, no drag-and-drop field editing (out of scope by spec).
 - Agent SSE streams events (`tool`/`applied`/`message`/`done`), not token-by-token.
+- **LLM free tiers are not viable** for this agentic app (each edit = several LLM
+  requests): Google's free tier is ~5 req/min + ~20 req/day per model, and
+  OpenRouter free models rate-limit under load. Use a paid model/tier — see
+  [Model selection](#8-model-selection). The gate can be paced under a per-minute
+  quota with `GATE_PAUSE_SECONDS`, but the per-day cap is the hard blocker.
 
 ## 11. Roadmap
 
