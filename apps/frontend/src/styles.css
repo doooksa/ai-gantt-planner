@@ -168,6 +168,14 @@ body,
   background: var(--accent-weak);
 }
 
+/* Thin, low-contrast internal gridlines: chart day columns (timescale-border)
+   and grid cell/row separators — enough to read dates, not enough to buzz. */
+.gantt-wrap .wx-theme {
+  --wx-timescale-border: 1px solid rgba(255, 255, 255, 0.06);
+  --wx-grid-body-cell-border: 1px solid rgba(255, 255, 255, 0.05);
+  --wx-grid-body-row-border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
 /* --- Gantt bars: single accent, slight rounding, hover highlight --- */
 /* Override SVAR's task-color CSS variables (default blue) on the theme wrapper.
    Critical-path colors are intentionally left untouched. */
