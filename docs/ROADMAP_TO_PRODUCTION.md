@@ -1,141 +1,156 @@
-# Roadmap to production
+# Roadmap к продакшену
 
-This is a test-assignment build: Phases 1–3 are complete and gated, and the app
-deploys to Vercel + Render. This document lists what a real production version
-would need beyond the assignment scope, and why each item was consciously
-deferred rather than missed. It is organized into five areas: **scheduler**,
-**data & multi-user**, **AI safety**, **files**, and **deployment & CI**.
+Это тестовое задание: фазы 1–3 завершены и прошли гейты, приложение
+деплоится на Vercel + Render. Этот документ перечисляет, что понадобилось бы
+реальной продакшен-версии сверх рамок задания, и почему каждый пункт был
+**осознанно отложен**, а не упущен. Разбит на пять областей: **планировщик**,
+**данные и многопользовательность**, **безопасность AI**, **файлы** и
+**деплой и CI**.
 
-**Design stance (why this roadmap is incremental, not a rewrite):** correctness
-lives in the deterministic backend — validators + topological scheduler + atomic
-patches — not in the LLM. The model only turns natural language into a structured
-`Patch`; the backend validates and recomputes. Every item below extends that
-spine rather than reworking it.
+**Позиция по дизайну (почему этот roadmap — инкремент, а не переписывание):**
+корректность живёт в детерминированном бэкенде — валидаторы + топологический
+планировщик + атомарные патчи — а не в LLM. Модель лишь превращает
+естественный язык в структурированный `Patch`; бэкенд валидирует и
+пересчитывает. Каждый пункт ниже **расширяет** этот хребет, а не переделывает его.
 
 ---
 
-## 1. Scheduler
+## 1. Планировщик
 
-Today: existence check → cycle detection (topological sort) → forward pass, in
-**calendar days**, recomputed deterministically after every mutation.
+Сегодня: проверка существования → обнаружение циклов (топологическая
+сортировка) → forward pass, в **календарных днях**, детерминированный пересчёт
+после каждой мутации.
 
-- **Working days & calendars.** Move from calendar days to working days: skip
-  weekends, per-team holiday calendars, per-assignee working hours. This is a
-  localized change in `domain/scheduler.py` (the forward pass), deliberately
-  isolated so it swaps in without touching validation or storage.
-- **Resource leveling.** The model derives earliest dates from dependencies
-  only; it does not stop one person holding two overlapping tasks. Add a leveling
-  pass, or at minimum an over-allocation warning surfaced in the UI (this also
-  makes the "кто самый загруженный" answer actionable).
-- **Milestones & date constraints.** Support zero-duration milestones and
-  "must-start-on / no-earlier-than" constraints, which a pure forward pass can't
-  express yet.
-- **Critical path & slack.** Compute the critical path and per-task slack so the
-  UI can highlight what actually moves the end date.
+- **Рабочие дни и календари.** Перейти от календарных дней к рабочим:
+  пропускать выходные, календари праздников по командам, рабочие часы по
+  исполнителям. Это локальное изменение в `domain/scheduler.py` (forward pass),
+  намеренно изолированное, чтобы подменяться без вмешательства в валидацию и
+  хранилище.
+- **Выравнивание ресурсов (resource leveling).** Модель выводит самые ранние
+  даты только из зависимостей; она не мешает одному человеку держать две
+  пересекающиеся задачи. Добавить проход выравнивания или как минимум
+  предупреждение о перегрузке в UI (это заодно делает ответ «кто самый
+  загруженный» actionable).
+- **Вехи и ограничения по датам.** Поддержать вехи нулевой длительности и
+  ограничения «must-start-on / не-раньше-чем», которые чистый forward pass пока
+  выразить не может.
+- **Критический путь и слэк.** Вычислять критический путь и слэк по каждой
+  задаче, чтобы UI подсвечивал то, что реально двигает срок окончания.
 
-## 2. Data & multi-user
+## 2. Данные и многопользовательность
 
-Today: single project in SQLite, `version` bump per mutation, snapshots for undo.
+Сегодня: один проект в SQLite, инкремент `version` на каждую мутацию, снапшоты
+для undo.
 
-- **Durable database.** SQLite on Render's ephemeral disk resets on each
-  deploy/restart. Move to managed Postgres (Render/Neon). Storage is already
-  behind `storage/db.py`, so this is a driver swap plus migrations (Alembic).
-- **Multi-project & multi-user.** Single-project by spec. Real use needs a
-  `Project` entity, per-project plans, and row-level scoping — plus **auth**
-  (OIDC / magic link) and **authorization** (who may edit which project), both
-  explicitly out of scope here.
-- **Concurrent editing.** `version` is broadcast but the client only re-fetches.
-  Add optimistic-concurrency rejection ("plan changed under you") and, for live
-  co-editing, a shared realtime layer (see §5).
-- **Snapshot retention.** Undo keeps snapshots with no pruning; add a retention
-  window and a redo stack.
+- **Долговременная база.** SQLite на эфемерном диске Render обнуляется на каждом
+  деплое/рестарте. Перейти на управляемый Postgres (Render/Neon). Хранилище уже
+  спрятано за `storage/db.py`, так что это замена драйвера плюс миграции
+  (Alembic).
+- **Мультипроект и мультипользователь.** По ТЗ — один проект. Реальное
+  использование требует сущности `Project`, планов по проектам и построчного
+  скоупинга — плюс **аутентификация** (OIDC / magic link) и **авторизация**
+  (кто какой проект может править), обе явно вне рамок задания.
+- **Конкурентное редактирование.** `version` бродкастится, но клиент лишь
+  перезапрашивает. Добавить отклонение по optimistic-concurrency («план изменили
+  под вами») и, для живого совместного редактирования, общий realtime-слой
+  (см. §5).
+- **Хранение снапшотов.** Undo хранит снапшоты без обрезки; добавить окно
+  хранения и стек redo.
 
-## 3. AI safety
+## 3. Безопасность AI
 
-The core guardrail already exists: **the LLM cannot write to the database.** It
-can only emit a structured `Patch` that the backend validates, applies
-atomically, and recomputes. Production hardens this further.
+Ключевая защита уже есть: **LLM не может писать в базу.** Она может лишь выдать
+структурированный `Patch`, который бэкенд валидирует, применяет атомарно и
+пересчитывает. Продакшен усиливает это дальше.
 
-- **Dry-run before apply (already in place, extend it).** `validate_patch` is a
-  no-write dry run returning the diff + errors; the agent is instructed to
-  validate before `apply_patch`, and `apply_patch` is atomic (one bad op rolls
-  back the whole patch). Production should **surface the dry-run diff to the user
-  for confirmation on destructive ops** (delete / mass-reassign) instead of
-  applying immediately, and require an explicit confirm step in the UI.
-- **Prompt-injection resistance.** Because the model's only effect is a
-  schema-checked `Patch` that the backend re-validates (existence, cycles,
-  durations), injected instructions **cannot corrupt the schedule or reach the
-  DB**. Remaining risk is that injection could still drive *valid but unwanted*
-  edits. Mitigations: treat plan text / imported Excel content as untrusted (it
-  already only becomes data, never tool authority); constrain which ops a session
-  may apply; cap patch size and blast radius; add a confirmation gate for
-  mass/destructive selectors (`by_assignee` touching many tasks).
-- **Evaluation set.** Grow the 10-command gate
-  (`tests/test_agent_scenarios.py`) into a real eval suite: adversarial and
-  ambiguous phrasings, multi-step edits, injection attempts, and
-  should-refuse cases (e.g. "delete everything"). Run it in CI against a cheap
-  model on a schedule, track a pass-rate over time, and gate model/prompt changes
-  on it. This is what lets the model be swapped safely (the point of the
-  tools/validation layer).
-- **Cost, quota & observability.** `/api/chat` calls a paid model with no
-  per-user quota — add rate limiting and a token budget. Log every agent turn
-  (tool calls, patches, validation errors) to a trace store so bad edits are
-  debuggable; today logs are local only.
+- **Dry-run перед apply (уже есть, расширить).** `validate_patch` — это
+  no-write dry-run, возвращающий diff + ошибки; агент проинструктирован
+  валидировать перед `apply_patch`, а `apply_patch` атомарен (одна плохая
+  операция откатывает весь патч). Продакшен должен **показывать diff из dry-run
+  пользователю для подтверждения на деструктивных операциях** (удаление /
+  массовое переназначение) вместо немедленного применения и требовать явного
+  шага подтверждения в UI.
+- **Устойчивость к prompt-injection.** Поскольку единственный эффект модели —
+  проверенный по схеме `Patch`, который бэкенд ре-валидирует (существование,
+  циклы, длительности), внедрённые инструкции **не могут испортить расписание
+  или дотянуться до БД**. Остаточный риск — что инъекция может всё же провести
+  *валидные, но нежелательные* правки. Митигейшены: считать текст плана /
+  импортируемый Excel недоверенными (они и так становятся только данными,
+  никогда — авторитетом на вызов тулов); ограничивать, какие операции сессия
+  может применять; лимитировать размер патча и радиус поражения; добавить
+  подтверждение для массовых/деструктивных селекторов (`by_assignee`,
+  затрагивающий много задач).
+- **Набор для оценки (eval set).** Вырастить гейт из 10 команд
+  (`tests/test_agent_scenarios.py`) в настоящий eval-набор: состязательные и
+  неоднозначные формулировки, многошаговые правки, попытки инъекций и случаи,
+  которые модель должна отклонить (например, «удали всё»). Гонять в CI на
+  дешёвой модели по расписанию, отслеживать pass-rate во времени и гейтить на
+  нём изменения модели/промпта. Именно это позволяет безопасно менять модель
+  (в чём и смысл слоя тулов/валидации).
+- **Стоимость, квоты и наблюдаемость.** `/api/chat` зовёт платную модель без
+  квоты на пользователя — добавить rate limiting и бюджет токенов. Логировать
+  каждый ход агента (вызовы тулов, патчи, ошибки валидации) в trace-хранилище,
+  чтобы плохие правки были отлаживаемы; сегодня логи только локальные.
 
-## 4. Files (Excel I/O)
+## 4. Файлы (Excel I/O)
 
-Today: import/export the 5-column format (openpyxl, first sheet, `read_only`),
-export adds computed start/end; clear per-row errors.
+Сегодня: импорт/экспорт формата из 5 колонок (openpyxl, первый лист,
+`read_only`), экспорт добавляет вычисленные start/end; понятные ошибки по
+строкам.
 
-- **Round-trip fidelity.** The 5-column format has no place for a manual shift
-  (`offset_days`), so a round-trip loses it (documented + tested). A richer
-  export (extra column or a metadata sheet) would preserve it.
-- **Robustness & scale.** Larger files, multiple sheets, streaming import, and
-  stricter validation messages with cell references.
-- **More formats.** CSV and MS Project / `.mpp` import-export as follow-ups.
+- **Точность round-trip.** В 5-колоночном формате нет места для ручного сдвига
+  (`offset_days`), так что round-trip его теряет (задокументировано + покрыто
+  тестом). Более богатый экспорт (доп. колонка или лист метаданных) сохранил бы
+  его.
+- **Надёжность и масштаб.** Файлы побольше, несколько листов, потоковый импорт
+  и более строгие сообщения об ошибках со ссылками на ячейки.
+- **Больше форматов.** CSV и MS Project / `.mpp` импорт-экспорт как следующие
+  шаги.
 
-## 5. Deployment & CI
+## 5. Деплой и CI
 
-Today: `render.yaml` (backend, Docker) + `vercel.json` (frontend) + a
-`docker-compose` for local; GitHub Actions CI runs `pytest -m "not live"` + the
-frontend build on every push/PR; the frontend already handles Render's cold start
-(retry/backoff loader + WS backoff).
+Сегодня: `render.yaml` (бэкенд, Docker) + `vercel.json` (фронтенд) +
+`docker-compose` для локали; GitHub Actions CI гоняет `pytest -m "not live"` +
+сборку фронтенда на каждый push/PR; фронтенд уже обрабатывает холодный старт
+Render (лоадер с retry/backoff + backoff у WS).
 
-- **CI/CD.** Offline CI (tests + build) is in place (`.github/workflows/ci.yml`).
-  Still to add: run the live agent gate (real tokens) on a schedule, and block
-  deploys on red.
-- **Health, metrics, alerting.** `/api/health` exists; add readiness vs.
-  liveness, request metrics, and error-rate alerts. An uptime pinger doubles as a
-  keep-warm to remove the ~30 s cold start (or move to a paid always-on tier).
-- **Realtime scaling.** `/ws` uses an in-process event bus, so it's single-
-  instance. Horizontal scaling needs a shared bus (Redis pub/sub) and sticky
-  sessions, or a hosted realtime service.
-- **End-to-end tests.** Playwright for the full chat → Gantt → undo loop;
-  property-based tests for the scheduler (random DAGs vs. a reference
-  implementation); load tests for `/api/chat` and `/ws` fan-out.
+- **CI/CD.** Офлайн-CI (тесты + сборка) на месте (`.github/workflows/ci.yml`).
+  Ещё добавить: гонять живой гейт агента (реальные токены) по расписанию и
+  блокировать деплой на красном.
+- **Health, метрики, алертинг.** `/api/health` есть; добавить readiness vs.
+  liveness, метрики запросов и алерты по error-rate. Uptime-пингер заодно
+  работает как keep-warm, убирая ~30-секундный холодный старт (или перейти на
+  платный always-on тариф).
+- **Масштабирование realtime.** `/ws` использует in-process event bus, поэтому
+  он single-instance. Горизонтальное масштабирование требует общей шины
+  (Redis pub/sub) и sticky-сессий, либо хостируемого realtime-сервиса.
+- **End-to-end тесты.** Playwright для полного цикла chat → Gantt → undo;
+  property-based тесты планировщика (случайные DAG против референсной
+  реализации); нагрузочные тесты `/api/chat` и fan-out `/ws`.
 
-## 6. Frontend & UX
+## 6. Фронтенд и UX
 
-Today: desktop dark UI — a floating-card Gantt (SVAR, WillowDark) + a chat panel,
-task modal, toolbar; day/week gridlines and a synchronized row↔bar hover
-highlight are in place.
+Сегодня: десктопный тёмный UI — плавающая карточная диаграмма Гантта
+(SVAR, WillowDark) + чат-панель, модалка задачи, тулбар; сетка по дням/неделям и
+синхронная подсветка строка↔бар при наведении на месте.
 
-- **Mobile / responsive — consciously deferred.** The current layout is
-  **desktop-first** and that is the intended usage scenario for a project-planning
-  tool: a two-pane side-by-side board (wide Gantt + chat rail) needs horizontal
-  room, and the SVAR grid+timeline is built for a pointer. A real mobile version
-  is a separate design pass, not a media query: a **vertical layout** (Gantt on
-  top, chat below), the **chat as a bottom sheet** that slides over the board,
-  **touch-first** interactions (tap a bar → modal, long-press/drag for scroll,
-  larger hit targets), and a condensed timeline. It was left out on purpose to
-  keep the scope on the desktop scenario rather than shipped half-done.
-- **Synchronized hover (done).** Hovering a grid row *or* its chart bar highlights
-  both (row background + bar glow), via one delegated handler keyed on SVAR's
-  shared `data-id` — no store state. Natural extensions: highlight the dependency
-  links of the hovered task, and a subtle "today" marker line.
-- **Other UI ideas (not done).** Token-by-token streaming of the agent's final
-  answer (currently event-level SSE); a light/dark theme toggle (dark-only today);
-  accessibility pass (focus order, ARIA on the board, keyboard nav of the chat);
-  an inline diff preview + explicit confirm step for destructive agent edits
-  (delete / mass-reassign) before they apply; and surfacing the scheduler's
-  critical path / slack once the backend computes them (§1).
+- **Мобильная / адаптивная вёрстка — осознанно отложено.** Текущий layout —
+  **десктоп-first**, и это целевой сценарий для инструмента планирования: две
+  панели бок о бок (широкий Гантт + рельса чата) требуют горизонтального места,
+  а сетка+таймлайн SVAR рассчитаны на указатель. Настоящая мобильная версия —
+  отдельный дизайн-проход, а не media query: **вертикальный layout** (Гантт
+  сверху, чат снизу), **чат как bottom sheet**, выезжающий поверх доски,
+  **touch-first** взаимодействия (тап по бару → модалка, long-press/drag для
+  скролла, крупнее хит-таргеты) и уплотнённый таймлайн. Оставлено намеренно,
+  чтобы держать скоуп на десктопном сценарии, а не отгружать половину.
+- **Синхронная подсветка (сделано).** Наведение на строку сетки *или* её бар
+  подсвечивает оба (фон строки + свечение бара), через один делегированный
+  обработчик по общему `data-id` из SVAR — без стора. Естественные расширения:
+  подсветка связей-зависимостей наведённой задачи и мягкая линия-маркер
+  «сегодня».
+- **Прочие UI-идеи (не сделано).** Потокенный стриминг финального ответа агента
+  (сейчас event-level SSE); переключатель светлой/тёмной темы (сегодня только
+  тёмная); проход по доступности (порядок фокуса, ARIA на доске, навигация чата
+  с клавиатуры); инлайн-превью diff + явный шаг подтверждения для деструктивных
+  правок агента (удаление / массовое переназначение) до применения; и вывод
+  критического пути / слэка планировщика, как только бэкенд их посчитает (§1).
