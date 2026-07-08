@@ -113,3 +113,29 @@ frontend build on every push/PR; the frontend already handles Render's cold star
 - **End-to-end tests.** Playwright for the full chat → Gantt → undo loop;
   property-based tests for the scheduler (random DAGs vs. a reference
   implementation); load tests for `/api/chat` and `/ws` fan-out.
+
+## 6. Frontend & UX
+
+Today: desktop dark UI — a floating-card Gantt (SVAR, WillowDark) + a chat panel,
+task modal, toolbar; day/week gridlines and a synchronized row↔bar hover
+highlight are in place.
+
+- **Mobile / responsive — consciously deferred.** The current layout is
+  **desktop-first** and that is the intended usage scenario for a project-planning
+  tool: a two-pane side-by-side board (wide Gantt + chat rail) needs horizontal
+  room, and the SVAR grid+timeline is built for a pointer. A real mobile version
+  is a separate design pass, not a media query: a **vertical layout** (Gantt on
+  top, chat below), the **chat as a bottom sheet** that slides over the board,
+  **touch-first** interactions (tap a bar → modal, long-press/drag for scroll,
+  larger hit targets), and a condensed timeline. It was left out on purpose to
+  keep the scope on the desktop scenario rather than shipped half-done.
+- **Synchronized hover (done).** Hovering a grid row *or* its chart bar highlights
+  both (row background + bar glow), via one delegated handler keyed on SVAR's
+  shared `data-id` — no store state. Natural extensions: highlight the dependency
+  links of the hovered task, and a subtle "today" marker line.
+- **Other UI ideas (not done).** Token-by-token streaming of the agent's final
+  answer (currently event-level SSE); a light/dark theme toggle (dark-only today);
+  accessibility pass (focus order, ARIA on the board, keyboard nav of the chat);
+  an inline diff preview + explicit confirm step for destructive agent edits
+  (delete / mass-reassign) before they apply; and surfacing the scheduler's
+  critical path / slack once the backend computes them (§1).

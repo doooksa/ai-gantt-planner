@@ -2,49 +2,50 @@
 
 [![CI](https://github.com/doooksa/ai-gantt-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/doooksa/ai-gantt-planner/actions/workflows/ci.yml)
 
-Interactive Gantt chart + an LLM chat agent that edits the project plan in
-natural language. Import/export Excel. The agent never writes to the database
-directly — it only translates natural language into structured operations
-through **MCP tools**; the backend validates every operation, applies it
-atomically, and **deterministically recomputes the schedule**. Task dates are
-always *derived*, never stored.
+Интерактивная диаграмма Гантта + LLM-чат-агент, который редактирует план проекта
+на естественном языке. Импорт/экспорт Excel. Агент **никогда не пишет в базу
+напрямую** — он лишь переводит естественный язык в структурированные операции
+через **MCP-инструменты**; бэкенд валидирует каждую операцию, применяет её
+атомарно и **детерминированно пересчитывает расписание**. Даты задач всегда
+*вычисляются*, никогда не хранятся.
 
-**Live demo:** [frontend (Vercel)](https://ai-gantt-planner-three.vercel.app) ·
-[backend (Render)](https://ai-gantt-api.onrender.com/api/health) ·
-[interactive API docs (Swagger)](https://ai-gantt-api.onrender.com/docs)
+**Живое демо:** [фронтенд (Vercel)](https://ai-gantt-planner-three.vercel.app) ·
+[бэкенд (Render)](https://ai-gantt-api.onrender.com/api/health) ·
+[интерактивная API-документация (Swagger)](https://ai-gantt-api.onrender.com/docs)
 
-> The backend is on Render's free tier and sleeps when idle — the first load may
-> show a "Сервер просыпается…" loader for ~30 s. Chat needs a funded LLM key set
-> on the backend; the Gantt, Excel import/export, task modal and undo work regardless.
+> Бэкенд на бесплатном тарифе Render засыпает при простое — первая загрузка может
+> ~30 с показывать лоадер «Сервер просыпается…». Чату нужен оплаченный LLM-ключ,
+> заданный на бэкенде; диаграмма, импорт/экспорт Excel, модалка задачи и undo
+> работают независимо от него.
 
-> Status: **Phases 1–3 complete and gated locally; deploy config added.** The
-> full demo scenario (chat edits → applied changes → live Gantt/WS update → undo,
-> plus Excel and the task modal) runs end-to-end against `uvicorn :8000` + Vite
-> `:5173`. Deployment manifests for Vercel (frontend) and Render (backend) are in
-> the repo; see [§6](#6-deployment). Demo gif to follow.
+> Статус: **готов к сдаче.** Фазы 1–3 завершены и прошли гейты; приложение
+> задеплоено на Vercel (фронт) + Render (бэк), живой прогон 10 эталонных команд
+> против прода — **10/10**. Полный демо-сценарий (правка через чат → блок
+> Applied changes → live-обновление диаграммы по WebSocket → undo, плюс Excel и
+> модалка задачи) работает end-to-end. См. [§6](#6-деплой).
 
 <!-- TODO: demo.gif -->
 
 ---
 
-## 1. Architecture
+## 1. Архитектура
 
 ```
                     ┌─────────────────────────────────────────────────────┐
-  Browser           │  FastAPI process (one)                              │
+  Браузер           │  FastAPI-процесс (один)                             │
  ┌────────┐  REST   │   ┌───────────────┐        ┌──────────────────────┐ │
- │ React  │◄──────► │   │  REST routes  │        │  MCP server (/mcp,    │ │
+ │ React  │◄──────► │   │  REST-роуты   │        │  MCP-сервер (/mcp,    │ │
  │  +SVAR │  SSE    │   │  /api/*       │        │  streamable HTTP)     │ │
  │  Gantt │◄──────► │   │  /api/chat    │        │  get_plan             │ │
  │  +chat │   WS    │   └──────┬────────┘        │  validate_patch       │ │
  └────────┘◄──────► │          │                 │  apply_patch          │ │
              /ws    │   ┌──────▼────────┐  MCP    │  undo_last            │ │
-                    │   │  agent loop   │◄───────►│  (client over HTTP)   │ │
+                    │   │ агентский цикл│◄───────►│  (клиент по HTTP)     │ │
                     │   │  (llm/agent)  │  tools  └──────────┬───────────┘ │
                     │   └──────┬────────┘                    │             │
                     │          │ OpenRouter             ┌────▼──────────┐  │
                     │          ▼ (openai SDK)           │  services.py  │  │
-                    │      ☁ LLM                        │  (one path)   │  │
+                    │      ☁ LLM                        │ (единый путь) │  │
                     │                                   └────┬──────────┘  │
                     │                     ┌──────────────────▼───────────┐ │
                     │                     │ domain: scheduler/validators │ │
@@ -53,142 +54,143 @@ always *derived*, never stored.
                     └─────────────────────────────────────────────────────┘
 ```
 
-Both the REST routes and the MCP tools go through **one `services.py` layer**, so
-an edit made by the agent and an edit made by the user behave identically and
-both broadcast `{version, diff}` over the WebSocket.
+И REST-роуты, и MCP-инструменты идут через **единый слой `services.py`**, поэтому
+правка агентом и правка руками пользователя ведут себя одинаково и обе
+бродкастят `{version, diff}` по WebSocket.
 
-## 2. How MCP is used
+## 2. Как используется MCP
 
-The LLM is **not the source of truth** and has **no direct access to the data**.
-It can only call four MCP tools:
+LLM **не является источником истины** и **не имеет прямого доступа к данным**.
+Она может вызвать только четыре MCP-инструмента:
 
-| Tool | Purpose |
+| Инструмент | Назначение |
 |---|---|
-| `get_plan()` | current plan with computed dates |
-| `validate_patch(patch)` | dry-run: diff + errors, **not applied** |
-| `apply_patch(patch)` | apply atomically, recompute, broadcast, return diff |
-| `undo_last()` | revert to the previous snapshot |
+| `get_plan()` | текущий план с вычисленными датами |
+| `validate_patch(patch)` | сухой прогон: diff + ошибки, **без применения** |
+| `apply_patch(patch)` | атомарно применить, пересчитать, бродкастнуть, вернуть diff |
+| `undo_last()` | откат к предыдущему снапшоту |
 
-Why a tools layer instead of letting the LLM write to the DB: every mutation is
-**validated** (existence, cycles, durations), **atomic** (one bad op rolls back
-the whole patch), and the schedule is **deterministically recomputed** by code,
-not the model. The model's job is just NL → structured `Patch`; correctness is
-the backend's job. This is what makes the system robust to the choice of model
-(see [Model selection](#8-model-selection)).
+Почему слой инструментов, а не прямая запись LLM в БД: каждая мутация
+**валидируется** (существование, циклы, длительности), **атомарна** (одна плохая
+операция откатывает весь патч), а расписание **детерминированно пересчитывается
+кодом**, а не моделью. Задача модели — только NL → структурированный `Patch`; за
+корректность отвечает бэкенд. Именно это делает систему устойчивой к выбору
+модели (см. [Выбор модели](#8-выбор-модели)).
 
-## 3. How the agent works
+## 3. Как работает агент
 
-Loop (`apps/backend/app/llm/agent.py`, max 10 iterations):
+Цикл (`apps/backend/app/llm/agent.py`, максимум 10 итераций):
 
-1. `list_tools()` from the MCP server → convert schemas to OpenAI tools format
+1. `list_tools()` у MCP-сервера → конвертация схем в формат OpenAI tools
    (`mcp_openai_bridge.py`).
-2. user message → `chat.completions` with tools → `tool_calls`
-   → `session.call_tool()` → results fed back → repeat until a final text answer.
-3. Guidance: read the plan first (`get_plan`), check with `validate_patch`, then
-   `apply_patch`; mass edits are **one** patch with a selector (e.g.
-   `by_assignee`), not N calls.
+2. сообщение пользователя → `chat.completions` с tools → `tool_calls`
+   → `session.call_tool()` → результаты обратно → до финального текстового ответа.
+3. Указания в системном промпте: сначала прочитать план (`get_plan`), проверить
+   через `validate_patch`, затем `apply_patch`; массовые правки — **одним** патчем
+   с селектором (например, `by_assignee`), а не N вызовами.
 
-The agent is transport-agnostic: it takes a connected MCP `ClientSession` and an
-OpenAI-compatible client, so the whole loop is unit-tested offline with a fake
-LLM, and the live 10-command gate runs against a real model.
+Агент транспортонезависим: принимает готовую MCP-`ClientSession` и
+OpenAI-совместимый клиент, поэтому весь цикл покрыт оффлайн-тестами с фейковым
+LLM, а живой гейт из 10 команд гоняется против реальной модели.
 
-## 4. Excel format
+## 4. Формат Excel
 
-Import columns (case-insensitive, whitespace-normalized headers), first sheet
-only, `read_only=True`:
+Колонки импорта (регистронезависимо, с нормализацией пробелов), только первый
+лист, `read_only=True`:
 
 ```
 задача, описание, исполнитель, длительность, предшественники
 ```
 
-- **предшественники** — task *names*, comma-separated, resolved to ids;
-  an unknown name is a clear user error.
-- **длительность** — integer ≥ 1; an invalid value errors with the **row number**.
-- **Export** adds computed `дата начала`, `дата конца`.
+- **предшественники** — *имена* задач через запятую, резолвятся в id;
+  несуществующее имя → понятная ошибка пользователю.
+- **длительность** — целое ≥ 1; невалидное значение → ошибка с **номером строки**.
+- **Экспорт** добавляет вычисленные `дата начала`, `дата конца`.
 
-See `examples/sample_plan.xlsx` (same as the demo seed).
+См. `examples/sample_plan.xlsx` (тот же план, что и demo-seed).
 
-## 5. Local setup
+## 5. Локальный запуск
 
-### Backend (works today)
+### Бэкенд (работает сразу)
 
 ```bash
 cd apps/backend
 python -m venv .venv
-.venv/Scripts/activate            # Windows;  source .venv/bin/activate on *nix
+.venv/Scripts/activate            # Windows;  source .venv/bin/activate на *nix
 pip install -r requirements.txt
-cp ../../.env.example .env         # then put your OPENROUTER_API_KEY in .env
+cp ../../.env.example .env         # затем впишите OPENROUTER_API_KEY в .env
 uvicorn app.main:app --reload --port 8000
 ```
 
-- Offline tests: `pytest -m "not live"` (63 passed).
-- Live agent gate (needs `OPENROUTER_API_KEY`): `pytest tests/test_agent_scenarios.py`.
+- Оффлайн-тесты: `pytest -m "not live"` (63 passed).
+- Живой гейт агента (нужен `OPENROUTER_API_KEY`): `pytest tests/test_agent_scenarios.py`.
 
-### Frontend (Phase 3) — **requires Node.js 20+**
+### Фронтенд (Фаза 3) — **нужен Node.js 20+**
 
 ```bash
 cd apps/frontend
 npm install
-npm run dev            # http://localhost:5173, proxies the API to :8000
+npm run dev            # http://localhost:5173, проксирует API на :8000
 ```
 
 ### docker-compose
 
 ```bash
-cp .env.example apps/backend/.env      # then set OPENROUTER_API_KEY
-docker compose up --build              # backend + frontend (nginx)
-# open http://localhost:5173
+cp .env.example apps/backend/.env      # затем задайте OPENROUTER_API_KEY
+docker compose up --build              # бэкенд + фронтенд (nginx)
+# откройте http://localhost:5173
 ```
 
-The frontend container (nginx) serves the built SPA and reverse-proxies `/api`
-and `/ws` to the backend container, so the browser talks **same-origin** —
-mirroring the Vercel+Render topology as closely as a single host allows.
+Контейнер фронтенда (nginx) отдаёт собранный SPA и реверс-проксирует `/api` и
+`/ws` на контейнер бэкенда, поэтому браузер общается **same-origin** — максимально
+близко к топологии Vercel+Render в пределах одного хоста.
 
-> ⚠️ **Not run-verified locally.** The Docker daemon was unavailable in the dev
-> environment where these files were authored, so `docker compose up` was **not
-> executed end-to-end here.** The compose file passes `docker compose config`
-> (syntax/interpolation validated) and the Dockerfiles follow the standard
-> Python-slim / node-build→nginx patterns, but a first run on a machine with a
-> running daemon may still need a tweak. The non-Docker local setup above **is**
-> verified (63 tests green, frontend builds, demo scenario passes).
+> ⚠️ **Локально `docker compose up` не прогонялся.** В среде разработки, где
+> писались эти файлы, демон Docker был недоступен, поэтому end-to-end `up` **не
+> выполнялся здесь.** Compose проходит `docker compose config` (синтаксис и
+> интерполяция валидны), Dockerfile'ы следуют стандартным паттернам
+> Python-slim / node-build→nginx, но первый реальный запуск на машине с рабочим
+> демоном может потребовать доработки. Не-Docker локальный запуск выше
+> **проверен** (63 теста зелёные, фронт собирается, демо-сценарий проходит).
 
-## 6. Deployment
+## 6. Деплой
 
-Frontend → **Vercel**, backend → **Render**. Manifests are committed:
+Фронтенд → **Vercel**, бэкенд → **Render**. Манифесты закоммичены:
 
-| File | Role |
+| Файл | Роль |
 |---|---|
-| `render.yaml` | Render Blueprint — backend as a Docker web service, `healthCheckPath: /api/health` |
-| `apps/backend/Dockerfile` | backend image (binds Render's `$PORT`) |
-| `apps/frontend/vercel.json` | Vercel build + SPA rewrites |
-| `apps/frontend/Dockerfile` + `nginx.conf` | only for docker-compose, not for Vercel |
+| `render.yaml` | Render Blueprint — бэкенд как Docker web service, `healthCheckPath: /api/health` |
+| `apps/backend/Dockerfile` | образ бэкенда (биндится на `$PORT` от Render) |
+| `apps/frontend/vercel.json` | сборка Vercel + SPA-rewrites |
+| `apps/frontend/Dockerfile` + `nginx.conf` | только для docker-compose, не для Vercel |
 
-**Environment variables**
+**Переменные окружения**
 
-*Backend (Render):*
+*Бэкенд (Render):*
 
-| Var | Example | Notes |
+| Переменная | Пример | Примечание |
 |---|---|---|
-| `OPENROUTER_API_KEY` | `sk-or-…` | secret; set in dashboard |
-| `LLM_MODEL` | `anthropic/claude-haiku-4.5` | default |
-| `FRONTEND_ORIGIN` | `https://ai-gantt-planner.vercel.app` | CORS allowlist; **comma-separated** list allowed for Vercel preview URLs |
-| `DATABASE_URL` | `sqlite:///./gantt.db` | ephemeral on free tier (see roadmap) |
+| `OPENROUTER_API_KEY` | `sk-or-…` | секрет; задаётся в дашборде |
+| `LLM_MODEL` | `anthropic/claude-haiku-4.5` | по умолчанию |
+| `FRONTEND_ORIGIN` | `https://ai-gantt-planner-three.vercel.app` | allowlist CORS; допустим **список через запятую** для preview-URL Vercel |
+| `DATABASE_URL` | `sqlite:///./gantt.db` | эфемерна на free-тарифе (см. roadmap) |
 
-*Frontend (Vercel):*
+*Фронтенд (Vercel):*
 
-| Var | Example | Notes |
+| Переменная | Пример | Примечание |
 |---|---|---|
-| `VITE_API_BASE` | `https://ai-gantt-api.onrender.com` | backend origin; `VITE_API_URL` accepted as an alias. WS auto-derives `wss://` from an `https` base |
+| `VITE_API_BASE` | `https://ai-gantt-api.onrender.com` | origin бэкенда; `VITE_API_URL` — алиас. WS сам выводит `wss://` из `https`-базы |
 
-**Cold start.** Render's free tier sleeps after ~15 min idle; the first request
-then takes ~30 s. The frontend handles this: initial load retries with backoff
-behind a **"Сервер просыпается…"** loader, and the WebSocket auto-reconnects
-every 2 s — so a sleeping backend degrades to a short wait, not an error.
+**Холодный старт.** Free-тариф Render засыпает после ~15 мин простоя, первый
+запрос тогда занимает ~30 с. Фронт это обрабатывает: начальная загрузка повторяет
+запрос с backoff за лоадером **«Сервер просыпается…»**, а WebSocket
+переподключается с нарастающей паузой — так спящий бэкенд деградирует до короткого
+ожидания, а не до ошибки.
 
-**Step-by-step click-through** (Render then Vercel) is in
+**Пошаговый клик-через** (сначала Render, потом Vercel) — в
 [docs/DEPLOY.md](docs/DEPLOY.md).
 
-## 7. Excel + API reference
+## 7. Справочник API и Excel
 
 ```
 GET  /api/plan                GET  /api/health
@@ -196,82 +198,86 @@ POST /api/upload-excel        POST /api/undo
 GET  /api/export-excel        POST /api/reset-demo
 POST /api/chat  (SSE)         WS   /ws   → {version, diff}
 ```
-CORS origin comes from `FRONTEND_ORIGIN`. FastAPI also serves interactive docs at
-**`/docs`** (Swagger UI), `/redoc` (ReDoc), and the schema at `/openapi.json`.
 
-## 8. Model selection
+Origin для CORS берётся из `FRONTEND_ORIGIN`. FastAPI также отдаёт интерактивную
+документацию на **`/docs`** (Swagger UI), `/redoc` (ReDoc) и схему на
+`/openapi.json`.
 
-The LLM provider is fully configurable — the backend drives any OpenAI-compatible
-endpoint via three env vars (no code changes):
+## 8. Выбор модели
 
-| Var | Default | Purpose |
+LLM-провайдер полностью конфигурируем — бэкенд управляет любым OpenAI-совместимым
+эндпоинтом через три env-переменные (без правок кода):
+
+| Переменная | По умолчанию | Назначение |
 |---|---|---|
-| `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | API base URL |
-| `LLM_API_KEY_ENV` | `OPENROUTER_API_KEY` | name of the env var holding the key |
-| `LLM_MODEL` | `anthropic/claude-haiku-4.5` | model id |
+| `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | базовый URL API |
+| `LLM_API_KEY_ENV` | `OPENROUTER_API_KEY` | имя env-переменной с ключом |
+| `LLM_MODEL` | `anthropic/claude-haiku-4.5` | id модели |
 
-**Default: OpenRouter + Haiku 4.5.** Measured on the Phase 2 gate (the 10 reference
-commands in `apps/backend/tests/test_agent_scenarios.py`):
+**По умолчанию: OpenRouter + Haiku 4.5.** Замерено на гейте Фазы 2 (10 эталонных
+команд в `apps/backend/tests/test_agent_scenarios.py`):
 
-| Model | Provider | Correctness | Stability | Time / command |
+| Модель | Провайдер | Корректность | Стабильность | Время / команду |
 |---|---|---|---|---|
-| **`anthropic/claude-haiku-4.5`** (default) | OpenRouter | **10 / 10** | **5 / 5 runs** | ~8 s |
-| `anthropic/claude-sonnet-4.5` | OpenRouter | **10 / 10** | 1 run (control) | ~14 s |
-| `gemini-2.5-flash` | Google AI Studio | correct + fast, but **gate not runnable on free tier** | — | ~2–8 s |
+| **`anthropic/claude-haiku-4.5`** (дефолт) | OpenRouter | **10 / 10** | **5 / 5 прогонов** | ~8 с |
+| `anthropic/claude-sonnet-4.5` | OpenRouter | **10 / 10** | 1 прогон (контроль) | ~14 с |
+| `gemini-2.5-flash` | Google AI Studio | корректно и быстро, но **гейт не прогоняется на free-тарифе** | — | ~2–8 с |
 
-**Takeaway:** correctness comes from the tools/validation/scheduler layer, not the
-model — the architecture is **robust to the choice of model**. Switching providers
-is an env-only change.
+**Вывод:** корректность обеспечивает слой инструментов/валидации/планировщика, а
+не модель — поэтому архитектура **устойчива к выбору модели**. Смена провайдера —
+правка только env.
 
-**On free tiers (evaluated, not adopted).** Both OpenRouter's free models and
-Google's free tier were tested; neither sustains an agentic workload:
+**Про бесплатные тарифы (оценены, не приняты).** Тестировались и free-модели
+OpenRouter, и free-тариф Google; ни один не тянет агентскую нагрузку:
 
-- `gemini-2.5-flash` is fast (~2–8 s/command) and calls tools correctly, but the
-  free tier caps at **~5 requests/minute and ~20 requests/day per model**. One
-  agent command makes several requests, so the free daily quota allows only a
-  *handful of edits per day* — the 5×10 gate (~200 requests) can't complete, and a
-  real user would hit the wall almost immediately.
-- OpenRouter free models hit per-account and upstream-provider rate limits (429s).
+- `gemini-2.5-flash` быстр (~2–8 с/команду) и корректно зовёт инструменты, но
+  free-тариф ограничен **~5 запросов/минуту И ~20 запросов/сутки** на модель. Одна
+  команда агента делает несколько запросов, поэтому дневная квота даёт лишь
+  *несколько правок в сутки* — гейт 5×10 (~200 запросов) не проходит, а реальный
+  пользователь упрётся в лимит почти сразу.
+- Free-модели OpenRouter упираются в rate-лимиты аккаунта и апстрим-провайдера
+  (429).
 
-So the default stays on a **paid** model (Haiku 4.5, which is cheap). To use Google
-in production, point the profile at a **paid** Google tier — the env switch is the
-same. See `.env.example` for the ready-to-use Google profile.
+Поэтому по умолчанию — **платная** модель (Haiku 4.5, она копеечная). Чтобы
+использовать Google в проде, направьте профиль на **платный** тариф Google —
+переключение тем же env. Готовый Google-профиль — в `.env.example`.
 
-## 9. AI assistants usage
+## 9. Использование AI-ассистентов
 
-This project was built with Claude Code (Opus 4.8), tracked per phase in
-[docs/AI_USAGE.md](docs/AI_USAGE.md): what was delegated, what the model got
-wrong and how it was fixed, and what was verified by hand. Highlights:
+Проект построен с Claude Code (Opus 4.8), фиксировано по фазам в
+[docs/AI_USAGE.md](docs/AI_USAGE.md): что делегировано, что модель предложила
+неверно и как исправлено, что проверено руками. Ключевое:
 
-- Domain, scheduler, validators, patches, Excel I/O, storage, and the full MCP +
-  agent backend were generated with Claude Code, then gated by tests.
-- The frontend (Gantt board, chat panel, task modal, toolbar) and the whole
-  deployment layer (Dockerfiles, nginx, compose, `render.yaml`, `vercel.json`,
-  cold-start handling) were generated with Claude Code.
-- Notable fixes made in-dialogue: `offset_days` to keep dates derived while
-  supporting shifts; refusing shifts before the earliest date; documenting the
-  op-payload catalog in tool descriptions (fixed agent flakiness prompt-only);
-  date-fns scale formatters (SVAR's string tokens aren't date-fns); sizing the
-  Gantt to content height to drop empty rows and widening the window so the last
-  task label isn't clipped.
-- Honesty on verification: `docker compose up` could **not** be run in the dev
-  environment (no Docker daemon), so it's labeled *not verified locally* rather
-  than presented as tested — see [docs/AI_USAGE.md](docs/AI_USAGE.md) and
+- Домен, планировщик, валидаторы, патчи, Excel I/O, storage и весь бэкенд MCP +
+  агента сгенерированы с Claude Code, затем закрыты тестами.
+- Фронтенд (диаграмма, чат-панель, модалка задачи, тулбар) и весь слой деплоя
+  (Dockerfile'ы, nginx, compose, `render.yaml`, `vercel.json`, обработка
+  холодного старта) сгенерированы с Claude Code.
+- Заметные правки в диалоге: `offset_days` — чтобы даты оставались вычисляемыми,
+  но поддерживался сдвиг; отказ сдвигать раньше самой ранней даты; каталог
+  payload-операций в описаниях инструментов (починил флак агента промптом);
+  форматтеры шкалы на date-fns (строковые токены SVAR — не date-fns); размер
+  диаграммы по высоте контента + выравнивание сетки/недель.
+- Честность про проверку: `docker compose up` **нельзя** было запустить в среде
+  (нет демона Docker), поэтому он помечен как *локально не проверен*, а не выдан
+  за протестированное — см. [docs/AI_USAGE.md](docs/AI_USAGE.md) и
   [docs/STATUS.md](docs/STATUS.md).
 
-## 10. Known limitations
+## 10. Известные ограничения
 
-- **Calendar days**, not working days (working-day scheduling is on the roadmap).
-- Excel round-trip does not preserve a manual shift (`offset_days`) — the 5-column
-  format has no place for it; structure is preserved (documented + tested).
-- Single project, no auth, no drag-and-drop field editing (out of scope by spec).
-- Agent SSE streams events (`tool`/`applied`/`message`/`done`), not token-by-token.
-- **LLM free tiers are not viable** for this agentic app (each edit = several LLM
-  requests): Google's free tier is ~5 req/min + ~20 req/day per model, and
-  OpenRouter free models rate-limit under load. Use a paid model/tier — see
-  [Model selection](#8-model-selection). The gate can be paced under a per-minute
-  quota with `GATE_PAUSE_SECONDS`, but the per-day cap is the hard blocker.
+- **Календарные дни**, не рабочие (рабочие дни — в roadmap).
+- Excel round-trip не сохраняет ручной сдвиг (`offset_days`) — в 5-колоночном
+  формате для него нет места; структура сохраняется (задокументировано + тест).
+- Один проект, без авторизации, без drag-and-drop-редактирования полей (вне
+  скоупа ТЗ).
+- Агентский SSE стримит события (`tool`/`applied`/`message`/`done`), а не
+  по-токенно.
+- **Бесплатные LLM-тарифы непригодны** для этого агентского приложения (каждая
+  правка = несколько запросов к LLM): free-тариф Google — ~5 req/min + ~20
+  req/day на модель, free-модели OpenRouter лимитируются под нагрузкой. Нужен
+  платный доступ — см. [Выбор модели](#8-выбор-модели). Гейт можно замедлить под
+  минутную квоту через `GATE_PAUSE_SECONDS`, но дневной лимит — жёсткая стена.
 
 ## 11. Roadmap
 
-See [docs/ROADMAP_TO_PRODUCTION.md](docs/ROADMAP_TO_PRODUCTION.md).
+См. [docs/ROADMAP_TO_PRODUCTION.md](docs/ROADMAP_TO_PRODUCTION.md).

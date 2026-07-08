@@ -2,7 +2,7 @@
 
 _Snapshot of where the AI Gantt Planner stands._
 
-## ✅ READY FOR SUBMISSION
+## ✅ READY FOR SUBMISSION — 2026-07-08
 
 All three phases complete and gated; **deployed and verified live**. Only
 `docs/demo.gif` remains (a recording, no code).
@@ -19,6 +19,11 @@ All three phases complete and gated; **deployed and verified live**. Only
   (downloaded from GitHub) imports cleanly via the API.
 - **MCP self-connection** uses an in-process transport (no host-header/proxy issues
   on Render); errors are unwrapped; `/api/health` reports the deployed commit.
+- **UI/UX pass:** dark theme (SVAR WillowDark) + single accent, floating-card
+  panels, Applied-changes icons, day/week gridlines, synchronized row↔bar hover,
+  dates inside wide bars. Desktop-first; mobile is a deliberate roadmap item.
+- **README** is in Russian; the roadmap covers frontend/UX (mobile deferral,
+  sync-hover, remaining UI ideas).
 
 ## Done (gated)
 
