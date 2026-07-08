@@ -4,8 +4,8 @@ _Snapshot of where the AI Gantt Planner stands._
 
 ## ✅ READY FOR SUBMISSION — 2026-07-08
 
-All three phases complete and gated; **deployed and verified live**. Only
-`docs/demo.gif` remains (a recording, no code).
+All three phases complete and gated; **deployed and verified live**.
+`docs/demo.gif` recorded and embedded in the README — nothing left open.
 
 - **Live:** [frontend (Vercel)](https://ai-gantt-planner-three.vercel.app) ·
   [backend (Render)](https://ai-gantt-api.onrender.com/api/health) ·
@@ -72,8 +72,6 @@ live Gantt/WS update → undo; task modal; mass reassign).
 `docker compose config` valid, no console errors.
 
 ## Remaining / not verified here
-- **`docs/demo.gif`** — the one open deliverable. Record the running app
-  (chat edit → Applied changes → live Gantt/WS update → Undo; Excel; task modal).
 - ⚠️ **`docker compose up` not run.** The Docker daemon was unreachable in the dev
   environment. Compose + Dockerfiles pass `docker compose config`, but a first
   real `up` may need a tweak. (Not on the critical path — prod runs on
@@ -90,8 +88,9 @@ The `.venv` was recreated this session — the old one pointed at a Python 3.12 
 no longer exists after the project moved; rebuilt on Python 3.13.2.
 
 ## Next step
-Record `docs/demo.gif` on the running app. Everything else is done, gated, and
-live.
+Nothing outstanding — the build is done, gated, live, and the demo is recorded.
+A regression test (`test_import_then_chat_edits_imported_plan`) now guards the
+import→chat path (imported plan survives a chat edit; no silent reset to seed).
 
 ## After moving this folder (read first if paths look broken)
 
