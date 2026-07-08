@@ -147,6 +147,45 @@ def test_chat_applies_and_streams_events(client, storage, fake_chat):
     assert storage.get_plan().by_id("design").duration_days == 5
 
 
+def test_import_then_chat_edits_imported_plan(client, storage, fake_chat):
+    """Regression: the main ТЗ scenario — import a plan, then a chat command must
+    edit THE IMPORTED plan, never silently roll back to the seed.
+
+    Guards the whole import→chat path (REST upload and the chat's in-memory MCP
+    session share one Storage singleton; the agent reads the current plan via
+    get_plan, so a chat edit lands on the imported tasks and the seed does not
+    reappear). The imported names (Alpha/Beta) are deliberately disjoint from the
+    seed, so any reset-to-seed shows up as the wrong task set.
+    """
+    # 1. Import a plan that shares no task names with the seed.
+    xlsx = make_xlsx(
+        ["задача", "длительность", "предшественники"],
+        [["Alpha", 2, ""], ["Beta", 3, "Alpha"]],
+    )
+    up = client.post("/api/upload-excel", files={"file": ("p.xlsx", xlsx, "application/octet-stream")})
+    assert [t["name"] for t in up.json()["plan"]["tasks"]] == ["Alpha", "Beta"]
+
+    # 2. Chat command edits a task that only exists in the imported plan.
+    fake_chat([
+        assistant_tool_calls([("get_plan", {})]),
+        assistant_tool_calls([("apply_patch", {"patch": {"ops": [
+            {"type": "update_task", "selector": {"by_name": "Beta"},
+             "payload": {"duration_days": 5}}]}})]),
+        assistant_text("Готово: Beta теперь 5 дней."),
+    ])
+    r = client.post("/api/chat", json={"message": "Увеличь длительность Beta до 5 дней."})
+    assert r.status_code == 200
+    assert "applied" in [e["type"] for e in _sse_events(r.text)]
+
+    # 3. The plan is STILL the imported one, with the edit applied — not the seed.
+    plan = client.get("/api/plan").json()
+    assert [t["name"] for t in plan["tasks"]] == ["Alpha", "Beta"], "imported plan was lost"
+    assert next(t for t in plan["tasks"] if t["name"] == "Beta")["duration_days"] == 5
+    seed_names = {"Research", "Design", "Backend API"}
+    assert not seed_names & {t["name"] for t in plan["tasks"]}, "seed tasks reappeared"
+    assert plan["version"] == 2  # 0 seed -> 1 import -> 2 chat edit
+
+
 def test_chat_reports_error_without_key(client, storage, monkeypatch):
     # Simulate a missing key regardless of whether .env provided one: the error
     # must surface as a clean SSE 'error' event, not a crash.
